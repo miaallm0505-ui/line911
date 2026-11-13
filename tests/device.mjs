@@ -13,6 +13,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const R = { checks: [], console: [], crashes: [] };
 const check = (name, ok, info = '') => { R.checks.push({ name, ok: !!ok, info: String(info).slice(0, 300) }); console.log((ok ? 'OK  ' : 'FAIL') + ' ' + name + (info ? ' — ' + String(info).slice(0, 160) : '')) };
 
+process.on('unhandledRejection', e => console.log('unhandled', e && e.message));
 const [dev] = await android.devices();
 if (!dev) { console.error('Нет устройства'); process.exit(1) }
 const apk = fs.readdirSync('.').find(f => f.endsWith('.apk'));
@@ -38,7 +39,7 @@ if (page) {
   check('Плагины на месте', await ev(`['Haptics','LocalNotifications','App','KeepAwake','StatusBar'].filter(p=>!Capacitor.isPluginAvailable(p)).join(',')||true`) === true);
 
   // звук: нажимаем «Лаборатория» настоящим тапом — это жест пользователя
-  await page.tap('#lab'); await sleep(4000); await shot('02_lab');
+  await page.click('#lab').catch(e => check('Клик по Лаборатории', false, e.message)); await sleep(4000); await shot('02_lab');
   check('Звук: контекст запущен', (await ev(`(window.__audioState&&window.__audioState())||'нет хука'`)) === 'running', await ev(`(window.__audioState&&window.__audioState())`));
   check('Звук: файлы декодированы', (await ev(`window.__audioCount?window.__audioCount():0`)) >= 40, await ev(`window.__audioCount?window.__audioCount():0`));
   check('Микрофон', await ev(`navigator.mediaDevices.getUserMedia({audio:true}).then(s=>{s.getTracks().forEach(t=>t.stop());return true}).catch(e=>'ERR '+e.name)`) === true);
@@ -51,7 +52,13 @@ if (page) {
   await sleep(7000);
   const notif = adb('shell dumpsys notification --noredact');
   check('Уведомление показано', notif.includes('911') || notif.includes('Пропущенный'), '');
-  await ev(`document.querySelector('.mech .mf button:last-child')?.click()`);
+  await ev(`document.querySelectorAll('.stage3d').forEach(x=>x.remove()); document.querySelector('.mech .mf button:last-child')?.click()`);
+
+  // 3D-сцена на настоящем GPU эмулятора: кадры в секунду
+  await ev(`document.querySelector('.lcard button').click()`); await sleep(9000); await shot('02b_3d');
+  const fps = await ev(`new Promise(r=>{let n=0;const t0=performance.now();(function f(){n++; if(performance.now()-t0<3000) requestAnimationFrame(f); else r(Math.round(n/3))})()})`, 8000);
+  check('3D-сцена работает', !!(await ev(`!!window.__stage`)), 'кадров/с: ' + fps);
+  await ev(`window.__stage&&window.__stage.dispose(); document.querySelectorAll('.stage3d').forEach(x=>x.remove())`);
 
   // автопрохождения прямо на телефоне
   for (let i = 0; i < 3; i++) {
@@ -65,7 +72,7 @@ if (page) {
   // настоящая ночь: начать, свернуть на 50 с, вернуться — должен быть пропущенный вызов
   await ev(`location.reload()`, 3000); await sleep(4000);
   await ev(`window.__SLOW=0; (window.__state&&0); document.querySelector('#nm').value='Тест'`);
-  await page.tap('#go'); await sleep(3000);
+  await page.click('#go').catch(e => check('Клик по Начать', false, e.message)); await sleep(3000);
   await ev(`(()=>{const S=window.__state(); S.f.realtime=1; return true})()`);
   await shot('04_game');
   adb('shell input keyevent KEYCODE_HOME'); await sleep(50000);

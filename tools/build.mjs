@@ -18,11 +18,17 @@ const www = path.join(root, 'www');
 fs.rmSync(www, { recursive: true, force: true });
 fs.mkdirSync(path.join(www, 'assets/audio'), { recursive: true });
 names.forEach(n => fs.copyFileSync(path.join(audioDir, n + '.ogg'), path.join(www, 'assets/audio', n + '.ogg')));
+// 3D: модели и текстуры
+const ASSET_DIRS = ['models', 'tex'];
+const assets = ASSET_DIRS.flatMap(d => fs.readdirSync(path.join(root, 'assets', d)).map(f => d + '/' + f));
+assets.forEach(a => { fs.mkdirSync(path.dirname(path.join(www, 'assets', a)), { recursive: true }); fs.copyFileSync(path.join(root, 'assets', a), path.join(www, 'assets', a)) });
 fs.writeFileSync(path.join(www, 'index.html'), tpl.replace('/*DATA*/', () => 'window.__SND_LIST=' + JSON.stringify(names) + ';'));
 
 // dist/ — одна страница
 const snd = Object.fromEntries(names.map(n => [n, fs.readFileSync(path.join(audioDir, n + '.ogg')).toString('base64')]));
 fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
-const one = tpl.replace('/*DATA*/', () => 'window.__SND=' + JSON.stringify(snd) + ';');
+const mime = f => f.endsWith('.glb') ? 'model/gltf-binary' : f.endsWith('.png') ? 'image/png' : 'image/jpeg';
+const inl = Object.fromEntries(assets.map(a => [a, `data:${mime(a)};base64,` + fs.readFileSync(path.join(root, 'assets', a)).toString('base64')]));
+const one = tpl.replace('/*DATA*/', () => 'window.__SND=' + JSON.stringify(snd) + ';window.__ASSETS=' + JSON.stringify(inl) + ';');
 fs.writeFileSync(path.join(root, 'dist/line911.html'), one);
 console.log(`www/ готово (${names.length} звуков), dist/line911.html — ${(one.length / 1048576).toFixed(2)} МБ, JS ${(js.length / 1024).toFixed(0)} КБ`);
