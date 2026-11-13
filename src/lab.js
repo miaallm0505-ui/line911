@@ -11,10 +11,8 @@ import { flashlight, diary } from './mechanics/light.js';
 import { crank, radio, ladder } from './mechanics/tower.js';
 import { blizzard, combine } from './mechanics/world.js';
 import { overlay, el } from './ui/ui.js';
-import { demo3d } from './demo3d.js';
 
 export const LAB = [
-  { n: '3D: салон после аварии', d: 'Черновик новой графики в стиле PS1. Осмотрись, протри стекло, зажги спичку, выключи фары. Смотри в лес.', run: () => demo3d() },
   { n: 'Реальное время', d: 'Часы идут, пока ты думаешь. Смотри, как остывает салон и садится телефон.', run: S => new Promise(res => {
     const ov = overlay('Реальное время', 'Сжатая ночь: 1 игровая минута = 10 секунд. Опасные моменты — секунда в секунду.');
     const b = el('div', 'rt'); ov.body.appendChild(b); clock.attach(S); clock.start();

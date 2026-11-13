@@ -1,7 +1,9 @@
 // Звук: фоновые слои с плавными переходами, приглушение в машине, телефонная линия, звук по сторонам.
 import { settings, saveSettings } from './state.js';
 
-const LOOPS = ['storm', 'blizzard', 'engine', 'fire', 'drone', 'drone2', 'dark', 'static', 'heart', 'heartfast', 'office', 'kitchen', 'murmur'];
+// Тихий фон: только ровный ветер и метель. Одиночных резких звуков нет вовсе.
+const LOOPS = ['storm', 'blizzard'];
+const QUIET = .45;   // общий потолок громкости фона
 const ON_LINE = new Set(['static', 'office', 'kitchen', 'murmur']);   // слышно «через трубку»
 const A = { ctx: null, buf: {}, g: {}, master: null, muff: null, line: null, ready: false, pending: null, early: [] };
 export const audio = A;
@@ -41,11 +43,12 @@ export function mix(layers = {}, inside = true) {
   if (!A.ready) { A.pending = { layers, inside }; return }
   const t = A.ctx.currentTime;
   A.muff.frequency.setTargetAtTime(inside ? 650 : 16000, t, 0.6);
-  for (const n in A.g) A.g[n].gain.setTargetAtTime(layers[n] || 0, t, 0.9);
+  for (const n in A.g) A.g[n].gain.setTargetAtTime((layers[n] || 0) * QUIET, t, 2.5);
 }
 
 // Одиночный звук. o: vol, rate, at, lp, pan, line, dur
 export function play(name, o = {}) {
+  return;   // одиночные звуки отключены: в игре только тихий фон
   if (!settings.sound) return;
   if (!A.ready) { A.early.push([name, o, performance.now()]); return }
   const b = A.buf['S_' + name]; if (!b) return;
@@ -61,6 +64,7 @@ export function play(name, o = {}) {
 
 // Звук, который движется по сторонам (шаги вокруг машины): pan от a до b за dur секунд
 export function sweep(name, from, to, dur, o = {}) {
+  return;
   if (!A.ready || !settings.sound) return;
   const b = A.buf['S_' + name]; if (!b) return;
   const s = A.ctx.createBufferSource(); s.buffer = b; s.loop = !!o.loop;

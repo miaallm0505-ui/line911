@@ -6,7 +6,7 @@ URL='file:///home/claude/line911/dist/line911.html'
 async def main():
     async with async_playwright() as p:
         b=await p.chromium.launch(executable_path='/usr/bin/google-chrome')
-        for scene, delay in (('car0', 3000), ('dial', 6000), ('knock', 4000), ('pipe', 2000), ('mimic', 5000)):
+        for scene, delay in (('night1', 3000), ('window', 2000)):
             pg=await b.new_page(); errs=[]; pg.on('pageerror',lambda e:errs.append(str(e)))
             await pg.goto(URL); await pg.wait_for_timeout(300)
             await pg.evaluate(f"(()=>{{window.__SLOW=1; window.__autoplay('{scene}').then(e=>window.__E=e); return 1}})()")

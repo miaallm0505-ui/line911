@@ -24,6 +24,7 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 export function helpers(S) {
   const h = {
     S,
+    alive: () => true,
     para: t => AUTO() ? ui.para(t) : ui.para(t),
     sys: (t, c) => ui.sys(t, c),
     note: (a, b) => ui.note(a, b),

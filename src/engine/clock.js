@@ -4,7 +4,8 @@
 import { step } from './body.js';
 
 const RATE = { compressed: 10, real: 60 };   // реальных секунд на игровую минуту
-let S = null, timer = null, listeners = [], danger = 0, frozen = 0;
+let S = null, timer = null, listeners = [], danger = 0, frozen = 0, pauseFn = null;
+export function setPause(fn) { pauseFn = fn }
 
 export function attach(state) { S = state; S.realTs = S.realTs || Date.now() }
 export function onTick(fn) { listeners.push(fn) }
@@ -24,7 +25,7 @@ function tick() {
   const now = Date.now();
   const realSec = (now - S.realTs) / 1000;
   S.realTs = now;
-  if (frozen || realSec <= 0) return;
+  if (frozen || realSec <= 0 || (pauseFn && pauseFn())) return;
   advance(realSec / secPerMin());
   listeners.forEach(f => f(S));
 }

@@ -19,7 +19,7 @@ fs.rmSync(www, { recursive: true, force: true });
 fs.mkdirSync(path.join(www, 'assets/audio'), { recursive: true });
 names.forEach(n => fs.copyFileSync(path.join(audioDir, n + '.ogg'), path.join(www, 'assets/audio', n + '.ogg')));
 // 3D: модели и текстуры
-const ASSET_DIRS = ['models', 'tex'];
+const ASSET_DIRS = [];
 const assets = ASSET_DIRS.flatMap(d => fs.readdirSync(path.join(root, 'assets', d)).map(f => d + '/' + f));
 assets.forEach(a => { fs.mkdirSync(path.dirname(path.join(www, 'assets', a)), { recursive: true }); fs.copyFileSync(path.join(root, 'assets', a), path.join(www, 'assets', a)) });
 fs.writeFileSync(path.join(www, 'index.html'), tpl.replace('/*DATA*/', () => 'window.__SND_LIST=' + JSON.stringify(names) + ';'));

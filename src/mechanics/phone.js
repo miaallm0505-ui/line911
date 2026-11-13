@@ -1,6 +1,6 @@
 // Телефон героя: звонилка, звонок с таймером, вопрос своими словами, пропущенные вызовы.
-import { overlay, el, $ } from '../ui/ui.js';
-import { tx } from '../engine/state.js';
+import { overlay, el, $, keepLast } from '../ui/ui.js';
+import { tx, settings } from '../engine/state.js';
 import { play } from '../engine/audio.js';
 import { buzz } from '../engine/device.js';
 import { setDanger } from '../engine/clock.js';
@@ -38,8 +38,11 @@ export function timed(S, opts, sec = 9) {
     let done = false;
     const fin = r => { if (done) return; done = true; clearInterval(iv); box.innerHTML = ''; setDanger(false); res(r) };
     opts.forEach(o => { const b = el('button'); b.textContent = tx(S, o.t); b.onclick = () => fin(o); box.appendChild(b) });
+    keepLast();
     const t0 = Date.now(); const fill = bar.firstChild;
-    const iv = setInterval(() => { const k = 1 - (Date.now() - t0) / (sec * 1000); fill.style.width = Math.max(0, k * 100) + '%'; if (k <= 0) fin({ silence: true }) }, 80);
+    // без таймеров: решение ждёт, молчание — отдельная кнопка
+    if (settings.noTimers) { bar.remove(); const q = el('button', 'quiet'); q.textContent = 'Промолчать'; q.onclick = () => fin({ silence: true }); box.appendChild(q); var iv = 0; return }
+    var iv = setInterval(() => { const k = 1 - (Date.now() - t0) / (sec * 1000); fill.style.width = Math.max(0, k * 100) + '%'; if (k <= 0) fin({ silence: true }) }, 80);
   });
 }
 

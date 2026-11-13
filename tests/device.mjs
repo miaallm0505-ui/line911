@@ -52,13 +52,7 @@ if (page) {
   await sleep(7000);
   const notif = adb('shell dumpsys notification --noredact');
   check('Уведомление показано', notif.includes('911') || notif.includes('Пропущенный'), '');
-  await ev(`document.querySelectorAll('.stage3d').forEach(x=>x.remove()); document.querySelector('.mech .mf button:last-child')?.click()`);
-
-  // 3D-сцена на настоящем GPU эмулятора: кадры в секунду
-  await ev(`document.querySelector('.lcard button').click()`); await sleep(9000); await shot('02b_3d');
-  const fps = await ev(`new Promise(r=>{let n=0;const t0=performance.now();(function f(){n++; if(performance.now()-t0<3000) requestAnimationFrame(f); else r(Math.round(n/3))})()})`, 8000);
-  check('3D-сцена работает', !!(await ev(`!!window.__stage`)), 'кадров/с: ' + fps);
-  await ev(`window.__stage&&window.__stage.dispose(); document.querySelectorAll('.stage3d').forEach(x=>x.remove())`);
+  await ev(`document.querySelector('.mech .mf button:last-child')?.click()`);
 
   // автопрохождения прямо на телефоне
   for (let i = 0; i < 3; i++) {

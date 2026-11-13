@@ -18,13 +18,13 @@ export function newState(name = 'Алекс', fem = false, mode = 'compressed') 
     hunger: 24, thirst: 20, fatigue: 34, blood: 100, bleed: 0, sanity: 82,
     cabin: 38, engineOn: false, pipe: false, pipeAt: 0, co: 0, fuel: 3.3,
     bat: 64, phoneWarm: false, flash: 0, wrap: false, socks: false, matches: 11,
-    inv: { phone: 1, thermos: 1, bar: 2, flashlight: 1, batteries: 1, matches: 1 },
+    inv: { phone: 1, thermos: 1, bar: 2, scarf: 1 }, stash: {}, uses: { thermos: 4 },
     f: {}, missed: [], log: [],
     realTs: Date.now(),      // когда последний раз считали время
   };
 }
 
-export const settings = Object.assign({ mic: false, notify: false, motion: false, easy: false, sound: true }, load(SETTINGS_KEY, {}));
+export const settings = Object.assign({ mic: false, notify: false, motion: false, easy: false, noTimers: false, sound: true }, load(SETTINGS_KEY, {}));
 export function saveSettings() { store(SETTINGS_KEY, settings) }
 
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));

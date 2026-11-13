@@ -1,0 +1,55 @@
+// Вещи: что есть у героя, сколько весит, что с этим можно сделать.
+// S.inv — то, что при себе (рюкзак и карманы); S.stash — то, что лежит в машине.
+import { clamp } from './state.js';
+
+export const CAP = 26;   // фунтов можно нести без штрафа
+
+// use(S) возвращает текст результата от первого лица (или null, если нельзя)
+export const ITEMS = {
+  phone: { n: 'Телефон', lb: .4, d: 'Одна полоска связи. Заряд садится от холода и разговоров.', keep: true },
+  thermos: { n: 'Термос с кофе', lb: 2.2, d: 'Сестрин термос, кофе с заправки. Ещё горячий.', uses: 4, act: 'Отпить',
+    use: S => { S.thirst = clamp(S.thirst - 18, 0, 100); S.core = Math.min(98.6, S.core + .35); S.hands = Math.max(S.handsP, S.hands - 4); return 'Я отвинтил крышку и сделал несколько глотков. Кофе успел остыть до терпимого, но всё равно разошёлся по груди тёплым пятном, и пальцам на стальных боках термоса стало легче.' } },
+  bar: { n: 'Батончик «Пейдэй»', lb: .15, d: 'Арахис и карамель. Твёрдый от мороза.', act: 'Съесть',
+    use: S => { S.hunger = clamp(S.hunger - 16, 0, 100); return 'Батончик замёрз так, что пришлось отогревать его во рту, прежде чем откусить. Сладость с солью показалась мне лучшим, что я ел за весь год.' } },
+  chocolate: { n: 'Коробка конфет', lb: .9, d: 'Подарок для Джесс. Двенадцать конфет с вишней.', uses: 3, act: 'Съесть пару',
+    use: S => { S.hunger = clamp(S.hunger - 10, 0, 100); S.sanity = clamp(S.sanity + 2, 0, 100); return 'Я съел две конфеты из коробки, которую выбирал для сестры, и мысленно пообещал купить ей новую, если доберусь.' } },
+  wine: { n: 'Бутылка вина', lb: 2.9, d: 'Каберне для Мэтта. Обещает тепло, которого на самом деле не даёт.', act: 'Выпить',
+    use: S => { S.core -= .5; S.sanity = clamp(S.sanity + 4, 0, 100); S.f.drank = 1; return 'Вино обожгло горло и на несколько минут подарило обманчивое тепло. Я знал, что алкоголь на морозе отнимает тепло, а не даёт его, и всё равно сделал ещё глоток.' } },
+  socks: { n: 'Шерстяные носки', lb: .3, d: 'Подарок для Ноа, но размер взрослый: Джесс просила купить на вырост.', act: 'Надеть',
+    use: S => { if (S.socks) return null; S.socks = true; delete S.inv.socks; return 'Я стянул ботинки и натянул вторую пару носков прямо поверх своих. Пальцы ног, которые я уже почти не чувствовал, отозвались колючей болью, и это было хорошо.' } },
+  scarf: { n: 'Шарф', lb: .4, d: 'Длинный, вязаный. Мамин.', act: 'Укутаться',
+    use: S => { if (S.wrap) return null; S.wrap = true; return 'Я обмотал шарф вокруг шеи и лица, оставив только глаза. Он всё ещё пах её духами, хотя я давно убеждал себя, что мне это кажется.' } },
+  flashlight: { n: 'Фонарик', lb: .6, d: S => S.f.torchReady ? 'Работает. Батарейки старые, хватит ненадолго.' : 'Без батареек. Бесполезен, пока их нет.', act: 'Включить',
+    use: S => { if (!S.f.torchReady) return 'Я щёлкнул кнопкой, хотя прекрасно знал, что батареек внутри нет.'; S.f.torchOn = !S.f.torchOn; return S.f.torchOn ? 'Фонарик зажёгся жёлтым кругом, который дрожал вместе с моей рукой.' : 'Я выключил фонарик, чтобы поберечь батарейки.' } },
+  batteries: { n: 'Батарейки АА', lb: .1, d: 'Две штуки из пульта, который валялся в бардачке.', combine: { flashlight: S => { S.f.torchReady = 1; S.flash = 80; delete S.inv.batteries; return 'Я вставил батарейки в фонарик, и после второго щелчка он ожил.' } } },
+  matches: { n: 'Спички', lb: .1, d: 'Коробок из мотеля в Дулуте. Сколько осталось — видно в описании тела.' },
+  foil: { n: 'Одеяло из фольги', lb: .2, d: 'Аварийное. Шуршит громче, чем хотелось бы.', act: 'Завернуться',
+    use: S => { if (S.f.foil) return null; S.f.foil = 1; S.wrap = true; return 'Я развернул хрустящее одеяло из фольги и завернулся в него поверх куртки. Оно шуршало при каждом вдохе, но тепло перестало уходить так быстро.' } },
+  flare: { n: 'Фальшфейер', lb: .5, d: 'Красный, горит пятнадцать минут. Огонь его отгоняет.' },
+  medkit: { n: 'Аптечка', lb: 1.2, d: 'Бинт, пластыри, антисептик.', uses: 2, act: 'Перевязать рану',
+    use: S => { if (S.bleed <= 0) return 'Перевязывать было нечего, и я убрал аптечку обратно.'; S.bleed = 0; return 'Я промыл рассечённую бровь антисептиком, от которого зашипело в глазах, и затянул голову бинтом. Кровь перестала ползти по виску.' } },
+  shovel: { n: 'Складная лопатка', lb: 2.4, d: 'Копать ею вдвое быстрее, чем руками.' },
+  cables: { n: 'Провода для прикуривания', lb: 3.5, d: 'Нужна вторая машина.' },
+};
+
+export const name = id => (ITEMS[id] || {}).n || id;
+export const desc = (S, id) => { const d = (ITEMS[id] || {}).d; return typeof d === 'function' ? d(S) : d || '' };
+export const has = (S, id) => (S.inv[id] || 0) > 0;
+export function give(S, id, n = 1) { S.inv[id] = (S.inv[id] || 0) + n; if (ITEMS[id] && ITEMS[id].uses && !S.uses[id]) S.uses[id] = ITEMS[id].uses }
+export function take(S, id, n = 1) { if (!S.inv[id]) return false; S.inv[id] -= n; if (S.inv[id] <= 0) delete S.inv[id]; return true }
+export function weight(S) { return Object.entries(S.inv).reduce((a, [id, n]) => a + ((ITEMS[id] || {}).lb || 0) * n, 0) }
+// использовать вещь; вернуть текст
+export function use(S, id) {
+  const it = ITEMS[id]; if (!it || !it.use) return null;
+  const r = it.use(S); if (r == null) return null;
+  if (it.uses) { S.uses[id] = (S.uses[id] || it.uses) - 1; if (S.uses[id] <= 0) { take(S, id); delete S.uses[id] } }
+  else if (['bar', 'wine'].includes(id)) take(S, id);
+  return r;
+}
+export function combine(S, a, b) {
+  const f = (ITEMS[a] && ITEMS[a].combine && ITEMS[a].combine[b]) || (ITEMS[b] && ITEMS[b].combine && ITEMS[b].combine[a]);
+  return f ? f(S) : null;
+}
+// положить в машину / забрать из машины
+export function stash(S, id) { if (!take(S, id)) return false; S.stash[id] = (S.stash[id] || 0) + 1; return true }
+export function unstash(S, id) { if (!S.stash[id]) return false; S.stash[id]--; if (!S.stash[id]) delete S.stash[id]; give(S, id); return true }

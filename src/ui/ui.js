@@ -6,31 +6,66 @@ export const el = (tag, cls, html) => { const e = document.createElement(tag); i
 let S = null;
 export function bind(state) { S = state }
 
-// ---- скорость текста: тап ускоряет
+// ---- чтение по шагам: следующий абзац появляется только по тапу. Экран сам не прыгает.
 export const pace = { fast: false };
-export const wait = ms => new Promise(r => setTimeout(r, pace.fast ? Math.min(ms, 50) : ms));
-
-// ---- лента
+export const reader = { reading: false, pending: null };
+export const wait = ms => new Promise(r => setTimeout(r, pace.fast ? 0 : ms));
 export function log() { return $('#log') }
-function scroll() { const l = log(); l.scrollTop = l.scrollHeight }
-export async function para(text, cls = '') {
-  const p = el('p', 'n ' + cls); p.textContent = tx(S, text); log().appendChild(p); scroll();
-  await wait(Math.min(3800, 700 + p.textContent.length * 27));
+let moreEl = null, newEl = null;
+function moreBar() {
+  if (!moreEl) { moreEl = el('div', 'more'); moreEl.innerHTML = '<span>далее</span><i>▾</i>'; $('#game').appendChild(moreEl); moreEl.onclick = e => { e.stopPropagation(); advance() } }
+  return moreEl;
 }
-export async function sys(text, cls = '') { const p = el('div', 'sys ' + cls); p.textContent = tx(S, text); log().appendChild(p); scroll(); await wait(cls.includes('act') ? 2000 : 800) }
+function newPill() {
+  if (!newEl) { newEl = el('button', 'newpill', 'новое ↓'); $('#game').appendChild(newEl); newEl.onclick = () => { const l = log(); l.scrollTo({ top: l.scrollHeight, behavior: 'smooth' }); newEl.classList.remove('on') } }
+  return newEl;
+}
+export function advance() { if (reader.pending) { const f = reader.pending; reader.pending = null; f() } }
+// ждать тапа «далее»; пока ждём — герой читает, и часы стоят
+function nextTap() {
+  if (pace.fast) return Promise.resolve();
+  if (window.__AUTOPLAY) return wait(350);   // медленный автотест: «тапает» сам, часы не останавливаются
+  return new Promise(res => {
+    reader.reading = true; moreBar().classList.add('on');
+    reader.pending = () => { reader.reading = false; moreBar().classList.remove('on'); res() };
+  });
+}
+// показать новый блок. Прокрутка только если игрок «следит» за лентой (предыдущий блок виден целиком),
+// и ровно настолько, чтобы новый блок поместился; если он длиннее экрана — показываем его начало.
+let lastNode = null;
+const posIn = (node, l) => node.getBoundingClientRect().top - l.getBoundingClientRect().top + l.scrollTop;
+function place(node) {
+  const l = log();
+  const following = !lastNode || !lastNode.isConnected || posIn(lastNode, l) + lastNode.offsetHeight <= l.scrollTop + l.clientHeight + 48;
+  l.appendChild(node); lastNode = node;
+  if (following || pace.fast) {
+    const top = posIn(node, l), bottom = top + node.offsetHeight + 72;   // запас под полосу «далее»
+    const target = Math.min(bottom - l.clientHeight, top - 16);
+    if (target > l.scrollTop) l.scrollTo({ top: target, behavior: pace.fast ? 'auto' : 'smooth' });
+    newPill().classList.remove('on');
+  } else newPill().classList.add('on');
+}
+// когда снизу появляются кнопки выбора, лента становится ниже: держим последний абзац на виду
+export function keepLast() {
+  const l = log(); if (!lastNode || !lastNode.isConnected) return;
+  requestAnimationFrame(() => { const bottom = posIn(lastNode, l) + lastNode.offsetHeight + 16; if (bottom > l.scrollTop + l.clientHeight) l.scrollTo({ top: bottom - l.clientHeight, behavior: 'smooth' }) });
+}
+export function header(text, cls = 'loc') { const d = el('div', cls); d.textContent = tx(S, text); place(d) }
+export async function para(text, cls = '') { const p = el('p', 'n ' + cls); p.textContent = tx(S, text); place(p); await nextTap() }
+export async function sys(text, cls = '') { const p = el('div', 'sys ' + cls); p.textContent = tx(S, text); place(p); if (cls.includes('act')) await nextTap() }
 export async function note(title, text) {
   const d = el('div', 'note'); d.append(el('small', '', ''), el('span', '', '')); d.firstChild.textContent = title; d.lastChild.textContent = tx(S, text);
-  log().appendChild(d); scroll(); await wait(1500 + text.length * 25);
+  place(d); await nextTap();
 }
 export async function say(who, text, cls = '', typing = true) {
   text = tx(S, text);
-  if (typing) { const t = el('div', 'typing', '<span></span><span></span><span></span>'); log().appendChild(t); scroll(); await wait(Math.min(1800, 400 + text.length * 14)); t.remove() }
+  if (typing && !pace.fast) { const t = el('div', 'typing', '<span></span><span></span><span></span>'); place(t); await wait(Math.min(900, 300 + text.length * 6)); t.remove() }
   const b = el('div', 'b ' + cls); if (who) { const w = el('span', 'w'); w.textContent = tx(S, who); b.appendChild(w) }
-  const s = el('span'); s.textContent = text; b.appendChild(s); log().appendChild(b); scroll();
-  await wait(Math.min(2800, 600 + text.length * 20));
+  const s2 = el('span'); s2.textContent = text; b.appendChild(s2); place(b); await nextTap();
 }
-export function me(text) { const b = el('div', 'b me'); const s = el('span'); s.textContent = tx(S, text); b.appendChild(s); log().appendChild(b); scroll() }
-export function act(text) { const a = el('div', 'act'); a.textContent = '▸ ' + tx(S, text); log().appendChild(a); scroll() }
+export function me(text) { const b = el('div', 'b me'); const s2 = el('span'); s2.textContent = tx(S, text); b.appendChild(s2); place(b) }
+export function act(text) { const a = el('div', 'act'); a.textContent = '▸ ' + tx(S, text); place(a) }
+function scroll() { }
 
 // ---- выборы
 export function choose(opts) {
@@ -43,6 +78,7 @@ export function choose(opts) {
       b.onclick = () => { box.innerHTML = ''; res(o) };
       box.appendChild(b);
     });
+    keepLast();
   });
 }
 export function clearChoices() { $('#choices').innerHTML = '' }
