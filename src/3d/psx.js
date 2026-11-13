@@ -78,7 +78,12 @@ export class PSX {
   render(scene, cam, t) {
     cam.aspect = this.aspect; cam.updateProjectionMatrix();
     this.fx.uTime.value = t;
-    this.r.setRenderTarget(this.rt); this.r.render(scene, cam);
+    this.r.setRenderTarget(this.rt);
+    // два прохода: мир снаружи со своим светом, потом салон со своим (глубина общая)
+    cam.layers.set(0); this.r.autoClear = true; this.r.render(scene, cam);
+    const bg = scene.background; scene.background = null;   // цветной фон иначе стёр бы первый проход
+    cam.layers.set(1); this.r.autoClear = false; this.r.clearDepth(); this.r.render(scene, cam); scene.background = bg;
+    this.r.autoClear = true; cam.layers.set(0);
     this.r.setRenderTarget(null); this.r.render(this.postScene, this.postCam);
   }
   dispose() { this.r.dispose(); this.rt.dispose() }

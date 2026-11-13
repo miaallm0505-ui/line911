@@ -18,9 +18,9 @@ export async function createStage(canvas, opts = {}) {
   const car = buildCar(scene);
   const beast = buildCreature(scene);
 
-  const cam = new THREE.PerspectiveCamera(opts.fov || 72, 1, .05, 120);
+  const cam = new THREE.PerspectiveCamera(opts.fov || 76, 1, .04, 120);
   car.group.add(cam); cam.position.copy(car.eye);
-  const view = { yaw: 0, pitch: -.12, ty: 0, tp: -.12, minY: -1.9, maxY: 1.9, minP: -.7, maxP: .45, locked: false };
+  const view = { yaw: 0, pitch: -.02, ty: 0, tp: -.02, minY: -1.9, maxY: 1.9, minP: -.7, maxP: .45, locked: false };
 
   // ---- осмотр: палец или наклон телефона
   let drag = null; const acts = new Set();

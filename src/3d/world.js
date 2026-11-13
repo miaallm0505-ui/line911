@@ -15,12 +15,12 @@ export function loadModel(name) {
 
 // Дорога петляет: x(z)
 export const roadX = z => Math.sin(z * .021) * 9 + Math.sin(z * .053) * 3;
-const ground = (x, z) => {
+const ground0 = (x, z) => {
   const d = Math.abs(x - roadX(z));
   const bank = d < 4.2 ? 0 : d < 6.5 ? (d - 4.2) * .45 : 1.05 + (d - 6.5) * .02;      // кювет и сугроб вдоль обочины
   return bank + Math.sin(x * .3) * Math.cos(z * .27) * .25 * Math.min(1, d / 8) - (d > 4.2 && d < 5.4 ? .35 : 0);
 };
-export const groundY = ground;
+
 
 // Ель: ярусы-конусы с рваными краями, снег на верхних гранях (цвет вершин)
 function pineGeo(seed) {
@@ -52,8 +52,11 @@ export function mergeGeos(list) {
   return out;
 }
 
-// Машина стоит в кювете справа у z=2 — вокруг неё ничего не растёт
-export const CAR_SPOT = { x: roadX(2) + 4.9, z: 2 };
+// Машина стоит в кювете справа у z=2 — вокруг неё ничего не растёт, снег под ней примят
+export const CAR_SPOT = { x: roadX(2) + 4.4, z: 2 };
+CAR_SPOT.y = ground0(CAR_SPOT.x, CAR_SPOT.z);
+const ground = (x, z) => { const g = ground0(x, z), d = Math.hypot(x - CAR_SPOT.x, (z - CAR_SPOT.z) * .6); return d < 3.2 ? Math.min(g, CAR_SPOT.y + (d > 2.2 ? (d - 2.2) * .5 : 0)) : g };
+export const groundY = ground;
 const clearOf = (x, z, r = 5) => Math.hypot(x - CAR_SPOT.x, z - CAR_SPOT.z) > r;
 
 export async function buildWorld(scene) {

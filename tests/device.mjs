@@ -75,9 +75,10 @@ if (page) {
   await page.click('#go').catch(e => check('Клик по Начать', false, e.message)); await sleep(3000);
   await ev(`(()=>{const S=window.__state(); S.f.realtime=1; return true})()`);
   await shot('04_game');
-  adb('shell input keyevent KEYCODE_HOME'); await sleep(50000);
+  await ev(`Capacitor.Plugins.LocalNotifications.removeAllDelivered().then(()=>1)`);
+  adb('shell input keyevent KEYCODE_HOME'); await sleep(52000);
   const n2 = adb('shell dumpsys notification --noredact');
-  check('Пропущенный вызов при выходе', n2.includes('911'), '');
+  check('Пропущенный вызов при выходе', /911 · \d\d:\d\d/.test(n2) && !n2.includes('911 · тест'), (n2.match(/911 · [^\s"]*/) || [''])[0]);
   adb(`shell monkey -p ${PKG} -c android.intent.category.LAUNCHER 1`); await sleep(5000);
   await shot('05_return');
   check('Экран пропущенных после возвращения', await ev(`!!document.querySelector('.mech')`), await ev(`document.querySelector('.mech .mh b')?.textContent||''`));

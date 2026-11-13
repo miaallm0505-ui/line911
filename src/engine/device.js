@@ -84,6 +84,8 @@ export async function keepAwake(on) {
     if (!on && wl) { await wl.release(); wl = null }
   } catch (e) { }
 }
+export function onAppState(fn) { if (native) App.addListener('appStateChange', st => fn(st.isActive)) }
+export async function clearDelivered() { try { if (native) await LocalNotifications.removeAllDelivered() } catch (e) { } }
 export function onBack(fn) { if (native) App.addListener('backButton', fn) }
 export function minimize() { if (native) App.minimizeApp() }
 export async function statusBar() { if (!native) return; try { await StatusBar.setStyle({ style: Style.Dark }); await StatusBar.setBackgroundColor({ color: '#06080a' }) } catch (e) { } }

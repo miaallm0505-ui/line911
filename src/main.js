@@ -110,9 +110,12 @@ $('#snd').textContent = settings.sound ? '🔊' : '🔇';
 $('#log').addEventListener('click', () => ui.pace.fast = true);
 
 // ---------- уход и возвращение: время идёт, звонят пропущенные
-document.addEventListener('visibilitychange', async () => {
+// Android сообщает о сворачивании системным событием (appStateChange), браузер — visibilitychange. Ловим оба, без двойных срабатываний.
+let away = false;
+async function setAway(on) {
+  if (on === away) return; away = on;
   if (!S || !playing || !S.f.realtime) return;
-  if (document.hidden) {
+  if (on) {
     clock.stop(); au.suspend(true); dev.keepAwake(false); store(SAVE_KEY, S);
     // звонок «приходит» через 40 с отсутствия; шторка уведомлений или быстрый выход его не вызывают
     const at = fmtT(S.t + 40 / clock.secPerMin() + Math.random() * 2);
@@ -126,7 +129,9 @@ document.addEventListener('visibilitychange', async () => {
     if (r && r.mins > 1) ui.toast(`Пока тебя не было: ${Math.round(r.mins)} мин. Салон остыл до ${Math.round(S.cabin)}°F`);
     if (S.missed.length && r) { const list = S.missed.slice(); S.missed = []; await missedScreen(S, list) } else S.missed = [];
   }
-});
+}
+document.addEventListener('visibilitychange', () => setAway(document.hidden));
+dev.onAppState(active => setAway(!active));
 
 // ---------- лаборатория
 function openLab() {
