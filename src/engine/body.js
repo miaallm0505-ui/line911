@@ -30,11 +30,11 @@ export function step(S, dt = 1) {
   if (S.pipe && S.t - S.pipeAt > 140) { S.pipe = false; S.f.pipeWarn = 1 }
   // тепло тела
   const e = effTemp(S, a);
-  const ins = 0.36 + (S.wrap && !['walk', 'run', 'dig'].includes(a) ? 0.22 : 0);
+  const ins = 0.36 + (S.wrap && !['walk', 'run', 'dig'].includes(a) ? 0.15 : 0);
   const k = 1 + S.hunger / 220 + S.fatigue / 400;
   if (e < 62) {
-    let d = (62 - e) * 0.00052 * (1 - ins) * k;
-    if (outside && a !== 'tube') d *= 1.75;
+    let d = (62 - e) * 0.00064 * (1 - ins) * k;
+    if (outside && a !== 'tube') d *= 2.3;
     if (a === 'walk') d -= 0.010;
     if (a === 'run' || a === 'dig') d -= 0.018;
     S.core -= Math.max(0.001, d) * dt;

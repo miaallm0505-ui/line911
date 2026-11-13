@@ -10,6 +10,7 @@ export function attach(state) { S = state; S.realTs = S.realTs || Date.now() }
 export function onTick(fn) { listeners.push(fn) }
 export function setDanger(on) { danger = Math.max(0, danger + (on ? 1 : -1)) }
 export function isDanger() { return danger > 0 }
+export function resetDanger() { danger = 0 }
 export function freeze(on) { frozen = Math.max(0, frozen + (on ? 1 : -1)) }   // только для меню и концовок
 export function secPerMin() { return danger > 0 ? 60 : RATE[S.mode] || 10 }
 

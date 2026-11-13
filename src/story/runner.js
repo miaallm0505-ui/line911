@@ -73,15 +73,38 @@ export function helpers(S) {
 }
 
 // Запуск цепочки сцен. scenes: {id: async (S,h) => nextId | {end:'id'}}
+// Смерть может наступить посреди сцены (время идёт само). Тогда сцена обрывается:
+// все помощники h после этого бросают ABORT, оверлеи и выборы убираются, играет сцена смерти.
+const ABORT = { abort: true };
+let killer = null;
+export function interrupt(sceneId) { if (killer) killer(sceneId) }
+function guard(h, st) {
+  const wrap = fn => (...a) => { if (st.dead) throw ABORT; const r = fn(...a); return r && r.then ? r.then(v => { if (st.dead) throw ABORT; return v }) : r };
+  const g = {};
+  for (const k in h) g[k] = typeof h[k] === 'function' ? wrap(h[k].bind(h)) : h[k];
+  g.m = {}; for (const k in h.m) g.m[k] = wrap(h.m[k]);
+  return g;
+}
 export async function run(S, scenes, startId, onEnd) {
-  const h = helpers(S);
+  const h0 = helpers(S);
   let id = startId;
-  for (let guard = 0; guard < 400; guard++) {
+  for (let n = 0; n < 400; n++) {
     const sc = scenes[id];
     if (!sc) throw new Error('Нет сцены: ' + id);
     S.scene = id; store(SAVE_KEY, S);
-    ui.pace.fast = !!window.__AUTOPLAY;
-    let nx = await sc(S, h);
+    ui.pace.fast = !!window.__AUTOPLAY && !window.__SLOW;
+    clock.resetDanger(); ui.setDangerUI(false); if (h0._call) clock.setDanger(true);
+    const st = { dead: false }; const h = guard(h0, st);
+    const died = new Promise(r => killer = to => { if (st.dead || String(id).startsWith('end_')) return; st.dead = true; r(to) });
+    let nx;
+    try { nx = await Promise.race([sc(S, h), died.then(to => ({ __died: to }))]) }
+    catch (e) { if (e !== ABORT) throw e; nx = { __died: await died } }
+    killer = null;
+    if (nx && nx.__died) {
+      document.querySelectorAll('.mech').forEach(o => o.remove()); ui.clearChoices();
+      if (h0._call) { ui.callHide(); h0._call = null }
+      nx = nx.__died;
+    }
     const d = deathCheck(S);
     if (d && scenes[d] && !String(id).startsWith('end_')) nx = d;
     if (nx && typeof nx === 'object' && nx.end) { await onEnd(nx, S); return nx }

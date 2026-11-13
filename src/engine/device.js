@@ -2,6 +2,9 @@
 import { Capacitor } from '@capacitor/core';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { App } from '@capacitor/app';
+import { KeepAwake } from '@capacitor-community/keep-awake';
+import { StatusBar, Style } from '@capacitor/status-bar';
 import { settings, saveSettings } from './state.js';
 
 export const native = Capacitor.isNativePlatform();
@@ -71,3 +74,16 @@ export async function listen(ctx, fn) {
   (function loop() { if (!live) return; an.getFloatTimeDomainData(data); let s = 0; for (const v of data) s += v * v; fn(Math.sqrt(s / data.length)); setTimeout(loop, 50) })();
   return () => { live = false; stream.getTracks().forEach(t => t.stop()) };
 }
+
+// ---- экран не гаснет, пока идёт ночь (иначе телефон уснёт и «уйдёт» из игры)
+let wl = null;
+export async function keepAwake(on) {
+  try {
+    if (native) { on ? await KeepAwake.keepAwake() : await KeepAwake.allowSleep(); return }
+    if (on && !wl && navigator.wakeLock) { wl = await navigator.wakeLock.request('screen'); wl.addEventListener('release', () => wl = null) }
+    if (!on && wl) { await wl.release(); wl = null }
+  } catch (e) { }
+}
+export function onBack(fn) { if (native) App.addListener('backButton', fn) }
+export function minimize() { if (native) App.minimizeApp() }
+export async function statusBar() { if (!native) return; try { await StatusBar.setStyle({ style: Style.Dark }); await StatusBar.setBackgroundColor({ color: '#06080a' }) } catch (e) { } }

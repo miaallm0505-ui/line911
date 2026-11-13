@@ -3,7 +3,7 @@ import { settings, saveSettings } from './state.js';
 
 const LOOPS = ['storm', 'blizzard', 'engine', 'fire', 'drone', 'drone2', 'dark', 'static', 'heart', 'heartfast', 'office', 'kitchen', 'murmur'];
 const ON_LINE = new Set(['static', 'office', 'kitchen', 'murmur']);   // слышно «через трубку»
-const A = { ctx: null, buf: {}, g: {}, master: null, muff: null, line: null, ready: false, pending: null };
+const A = { ctx: null, buf: {}, g: {}, master: null, muff: null, line: null, ready: false, pending: null, early: [] };
 export const audio = A;
 
 function b64(b) { const s = atob(b), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u.buffer }
@@ -32,6 +32,8 @@ export async function init() {
   });
   A.ready = true;
   if (A.pending) { const p = A.pending; A.pending = null; mix(p.layers, p.inside) }
+  // звуки, запрошенные до окончания загрузки: играем, если опоздали не больше чем на 1,5 с
+  const now = performance.now(); A.early.splice(0).forEach(([n, o, ts]) => { if (now - ts < 1500) play(n, o) });
 }
 
 // Фон: {storm:.6, engine:.4, ...}; inside — приглушить метель (мы в машине)
@@ -44,7 +46,8 @@ export function mix(layers = {}, inside = true) {
 
 // Одиночный звук. o: vol, rate, at, lp, pan, line, dur
 export function play(name, o = {}) {
-  if (!A.ready || !settings.sound) return;
+  if (!settings.sound) return;
+  if (!A.ready) { A.early.push([name, o, performance.now()]); return }
   const b = A.buf['S_' + name]; if (!b) return;
   const t = A.ctx.currentTime + (o.at || 0);
   const s = A.ctx.createBufferSource(); s.buffer = b; s.playbackRate.value = o.rate || 1;

@@ -4,12 +4,13 @@ import * as au from './engine/audio.js';
 import * as clock from './engine/clock.js';
 import * as dev from './engine/device.js';
 import { newState, settings, saveSettings, store, load, drop, SAVE_KEY, START_MIN, fmtT, tx } from './engine/state.js';
-import { run } from './story/runner.js';
+import { run, interrupt } from './story/runner.js';
+import { deathCheck } from './engine/body.js';
 import { scenes } from './story/prologue.js';
 import { LAB } from './lab.js';
 import { missedScreen } from './mechanics/phone.js';
 
-let S = null, playing = false;
+let S = null, playing = false, hiddenAt = 0, pendingMissed = null;
 const $ = ui.$;
 
 // ---------- стартовый экран
@@ -59,9 +60,10 @@ async function begin(sceneId, resumed) {
     const r = clock.catchUp();
     ui.sys('— ПРОДОЛЖЕНИЕ · ' + fmtT(S.t) + ' —');
     if (r) ui.toast(`Пока тебя не было, прошло ${Math.round(r.mins)} мин. Салон: ${Math.round(S.cabin)}°F`);
+    const dd = deathCheck(S); if (dd) sceneId = dd;
   }
   if (S.f.realtime) { clock.start(); $('#bar').classList.add('on') }
-  playing = true;
+  playing = true; dev.keepAwake(true);
   try {
     await run(S, wrapScenes(), sceneId, endCard);
   } catch (e) { console.error(e); ui.toast('Ошибка: ' + e.message, true); if (window.__AUTOPLAY) window.__ERR = (window.__ERR || []).concat(String(e.stack || e)) }
@@ -73,10 +75,10 @@ function wrapScenes() {
   w.crash = async (S, h) => { const r = await crash(S, h); S.t = START_MIN + 0.5; clock.attach(S); clock.start(); $('#bar').classList.add('on'); ui.hud(); return r };
   return w;
 }
-clock.onTick(() => ui.hud());
+clock.onTick(() => { ui.hud(); if (playing && S) { const d = deathCheck(S); if (d) interrupt(d) } });
 
 async function endCard(end, S) {
-  clock.stop(); playing = false; drop(SAVE_KEY);
+  clock.stop(); playing = false; dev.keepAwake(false); drop(SAVE_KEY);
   const d = ui.el('div', 'endcard' + (end.end === 'proto' ? ' act' : ''));
   d.innerHTML = '<small></small><h2></h2><p></p><div class="cnt"></div>';
   d.querySelector('small').textContent = end.end === 'proto' ? 'ПРОТОТИП' : 'КОНЦОВКА';
@@ -111,13 +113,16 @@ $('#log').addEventListener('click', () => ui.pace.fast = true);
 document.addEventListener('visibilitychange', async () => {
   if (!S || !playing || !S.f.realtime) return;
   if (document.hidden) {
-    clock.stop(); au.suspend(true); store(SAVE_KEY, S);
-    const at = fmtT(S.t + 1 + Math.random() * 3);
-    S.missed.push({ who: '911', time: at });
-    dev.scheduleMissed('Пропущенный вызов', '911 · ' + at, 8);
+    clock.stop(); au.suspend(true); dev.keepAwake(false); store(SAVE_KEY, S);
+    // звонок «приходит» через 40 с отсутствия; шторка уведомлений или быстрый выход его не вызывают
+    const at = fmtT(S.t + 40 / clock.secPerMin() + Math.random() * 2);
+    hiddenAt = Date.now(); pendingMissed = { who: '911', time: at };
+    dev.scheduleMissed('Пропущенный вызов', '911 · ' + at, 40);
   } else {
-    au.suspend(false); dev.cancelAll();
+    au.suspend(false); dev.cancelAll(); dev.keepAwake(true);
+    if (pendingMissed && Date.now() - hiddenAt >= 40000) S.missed.push(pendingMissed); pendingMissed = null;
     const r = clock.catchUp(); clock.start(); ui.hud();
+    const dd = deathCheck(S); if (dd) { interrupt(dd); return }
     if (r && r.mins > 1) ui.toast(`Пока тебя не было: ${Math.round(r.mins)} мин. Салон остыл до ${Math.round(S.cabin)}°F`);
     if (S.missed.length && r) { const list = S.missed.slice(); S.missed = []; await missedScreen(S, list) } else S.missed = [];
   }
@@ -137,7 +142,10 @@ function openLab() {
 }
 
 // ---------- автотест (запускается из tests/play.py)
-window.__autoplay = async () => { window.__AUTOPLAY = true; ui.pace.fast = true; await au.init(); S = newState('Тест', Math.random() < .5); S.t = 22 * 60 + 31; await begin('station'); return window.__END };
+window.__state = () => S;
+window.__audioState = () => au.audio.ctx ? au.audio.ctx.state : 'нет';
+window.__audioCount = () => Object.keys(au.audio.buf).length;
+window.__autoplay = async (from = 'station') => { window.__AUTOPLAY = true; window.__END = null; ui.pace.fast = !window.__SLOW; await au.init(); S = newState('Тест', Math.random() < .5); S.t = 22 * 60 + 31; if (from !== 'station') { S.f.realtime = 1; S.t = START_MIN + 5 } await begin(from); return window.__END };
 
 // ---------- снег
 (function snow() {
@@ -147,4 +155,13 @@ window.__autoplay = async () => { window.__AUTOPLAY = true; ui.pace.fast = true;
   (function f() { x.clearRect(0, 0, W, H); x.fillStyle = 'rgba(220,230,235,.75)'; P.forEach(p => { p.x += p.d * .7; p.y += p.s; if (p.x > W) p.x = -5; if (p.y > H) { p.y = -5; p.x = Math.random() * W } x.beginPath(); x.arc(p.x, p.y, p.r, 0, 7); x.fill() }); requestAnimationFrame(f) })();
 })();
 
+// ---------- кнопка «Назад» на Android: закрыть механику нельзя, из игры — двойным нажатием (ночь продолжится)
+let backAt = 0;
+dev.onBack(() => {
+  if (document.querySelector('.mech.lab, .mech.perm, .mech.bodyp')) { document.querySelector('.mech .mf button:last-child')?.click(); return }
+  if (document.querySelector('.mech')) return;
+  if (Date.now() - backAt < 2000) return dev.minimize();
+  backAt = Date.now(); ui.toast(playing ? 'Ещё раз — свернуть. Ночь не остановится.' : 'Ещё раз — выйти');
+});
+dev.statusBar();
 startScreen();

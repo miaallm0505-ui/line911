@@ -28,7 +28,7 @@ jobs:
         run: npm ci
 
       - name: Проверка сцен
-        run: node tests/scenes.test.mjs
+        run: node tests/scenes.test.mjs && node tests/engine.test.mjs
 
       - name: Сборка веб-части
         run: node tools/build.mjs
@@ -61,3 +61,43 @@ jobs:
           body: Автосборка. Скачай APK ниже и установи на Android (разрешить установку из этого источника).
           files: line911-${{ github.run_number }}.apk
           prerelease: true
+
+  device:
+    needs: apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: line911-apk
+
+      - name: KVM для эмулятора
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Проверка на эмуляторе Android 13
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-boot-anim -camera-back none
+          script: node tests/device.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: device-report
+          path: out/device
