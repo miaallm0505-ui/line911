@@ -1,0 +1,63 @@
+name: Сборка APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Зависимости
+        run: npm ci
+
+      - name: Проверка сцен
+        run: node tests/scenes.test.mjs
+
+      - name: Сборка веб-части
+        run: node tools/build.mjs
+
+      - name: Android-проект
+        run: |
+          npx cap add android
+          node tools/android-patch.mjs
+          npx cap sync android
+
+      - name: Сборка APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Переименовать
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk line911-${{ github.run_number }}.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: line911-apk
+          path: line911-${{ github.run_number }}.apk
+
+      - name: Релиз
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Прототип 0.1.${{ github.run_number }}
+          body: Автосборка. Скачай APK ниже и установи на Android (разрешить установку из этого источника).
+          files: line911-${{ github.run_number }}.apk
+          prerelease: true

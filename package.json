@@ -1,0 +1,22 @@
+{
+  "name": "line911",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Линия 911: Forest Road 2254 — хоррор с выживанием в реальном времени",
+  "type": "module",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "test": "node tests/scenes.test.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/haptics": "^6.0.1",
+    "@capacitor/local-notifications": "^6.1.0",
+    "@capacitor/status-bar": "^6.0.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.2",
+    "esbuild": "^0.24.0"
+  }
+}

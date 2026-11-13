@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#06080a">
+<title>Линия 911: Forest Road 2254</title>
+<style>/*CSS*/</style>
+</head>
+<body>
+<canvas id="snow"></canvas><div id="vign"></div><div id="flash"></div>
+<div id="app">
+  <div id="start">
+    <h1>ЛИНИЯ <em>911</em></h1>
+    <div class="sub">FOREST ROAD 2254 · ПРОТОТИП 0.1</div>
+    <p>Метель. Ночь перед сочельником. Одна полоска связи и голос диспетчера, которому нельзя верить. Время не останавливается — даже когда ты думаешь.</p>
+    <label>Как тебя зовут</label>
+    <input id="nm" value="Алекс" maxlength="16" autocomplete="off">
+    <div class="seg"><button id="gm" class="on">Он</button><button id="gf">Она</button></div>
+    <label>Ночь</label>
+    <div class="seg"><button id="mc" class="on">Сжатая<small>≈ 85 минут</small></button><button id="mr">Настоящая<small>8,5 часа</small></button></div>
+    <button class="big" id="go">НАЧАТЬ НОЧЬ</button>
+    <button class="big alt" id="cont" hidden>ПРОДОЛЖИТЬ</button>
+    <div class="links"><button class="big alt" id="lab">Лаборатория механик</button><button class="big alt" id="perm">Разрешения</button></div>
+    <div class="warn">Лучше в наушниках и в темноте · тап по тексту ускоряет его</div>
+  </div>
+  <div id="game" hidden>
+    <div id="bar"><span>🕐 <b id="hT">23:41</b></span><span>🌡 <b id="hC">98.6°</b></span><span>🔋 <b id="hB">64%</b></span><span class="sp"></span><span id="hS">салон</span><button id="bodyBtn">тело</button><button id="snd">🔊</button></div>
+    <div id="call"><div><div class="who" id="cWho"></div><div class="num" id="cNum"></div></div><div class="wave"><i></i><i></i><i></i></div><div class="tm" id="cTm">00:00</div></div>
+    <div id="log"></div>
+    <div id="choices"></div>
+  </div>
+</div>
+<script>/*DATA*/</script>
+<script>/*JS*/</script>
+</body>
+</html>

@@ -1,0 +1,92 @@
+// Проигрыватель сцен. Сцена — асинхронная функция (S, h) => id следующей сцены.
+// h — набор помощников: текст, реплики, выборы, механики, звук. В режиме автотеста всё решается само.
+import * as ui from '../ui/ui.js';
+import * as au from '../engine/audio.js';
+import * as clock from '../engine/clock.js';
+import { deathCheck } from '../engine/body.js';
+import { store, SAVE_KEY, clamp } from '../engine/state.js';
+import { dialer, timed, question, echo } from '../mechanics/phone.js';
+import { freeze, dig, match, knock3 } from '../mechanics/body.js';
+import { frost } from '../mechanics/frost.js';
+import { sigil } from '../mechanics/sigil.js';
+import { flashlight, diary } from '../mechanics/light.js';
+import { crank, radio, ladder } from '../mechanics/tower.js';
+import { blizzard, combine } from '../mechanics/world.js';
+
+export const WHO = { d: 'Дениз · 911', m: 'Марси Толонен · диспетчерская', k: 'Кейли', x: '???', j: 'Джесс', w: 'Уолт', r: 'Помощник шерифа' };
+const AMB = {
+  silent: [{}, true], road: [{ storm: .35, blizzard: .2 }, true], car: [{ storm: .5, blizzard: .25 }, true],
+  out: [{ storm: .75, blizzard: .55 }, false], forest: [{ blizzard: .7, storm: .3 }, false],
+};
+const AUTO = () => !!window.__AUTOPLAY;
+const pick = a => a[Math.floor(Math.random() * a.length)];
+
+export function helpers(S) {
+  const h = {
+    S,
+    para: t => AUTO() ? ui.para(t) : ui.para(t),
+    sys: (t, c) => ui.sys(t, c),
+    note: (a, b) => ui.note(a, b),
+    say: (k, t, label, typing = true) => ui.say(label != null ? label : (WHO[k] || ''), t, k, typing),
+    me: t => ui.me(t),
+    wait: ms => ui.wait(ms),
+    async choose(opts) {
+      const vis = opts.filter(o => !o.if || o.if(S));
+      const o = AUTO() ? pick(vis) : await ui.choose(vis);
+      if (o.say) ui.me(o.say === true ? o.t : o.say); else ui.act(o.t);
+      if (o.fx) o.fx(S);
+      return o;
+    },
+    async timed(opts, sec) {
+      if (AUTO()) { const o = Math.random() < .2 ? { silence: true } : pick(opts); if (!o.silence) ui.me(o.say || o.t); return o }
+      const o = await timed(S, opts, sec); if (!o.silence) ui.me(o.say || o.t); else ui.act('Ты молчишь.'); return o;
+    },
+    amb(name, extra = {}) { const [l, inside] = AMB[name] || AMB.car; const L = Object.assign({}, l, extra); if (S.engineOn && name === 'car') L.engine = .55; if (h._call) Object.assign(L, h._call); au.mix(L, inside); h._amb = name; h._ambx = extra },
+    call(who, num, layer) { ui.callShow(who, num, layer === 'evil'); h._call = layer === 'office' ? { office: .45, static: .08 } : layer === 'kitchen' ? { kitchen: .5 } : { static: .22, murmur: .12 }; h.amb(h._amb || 'car', h._ambx); clock.setDanger(true) },
+    endcall() { ui.callHide(); au.play('hangup', { vol: .6 }); h._call = null; h.amb(h._amb || 'car', h._ambx); clock.setDanger(false) },
+    snd: (n, o) => au.play(n, o),
+    sweep: (n, a, b, d, o) => au.sweep(n, a, b, d, o),
+    knock3(pan = 0, roof = true) { knock3(pan, roof) },
+    shake: ui.shake, flash: ui.flash, toast: ui.toast,
+    danger(on) { clock.setDanger(on); ui.setDangerUI(on) },
+    tick(min, act) { const p = S.activity; if (act) S.activity = act; clock.advance(min); S.activity = p; ui.hud() },
+    // механики
+    m: {
+      dialer: o => AUTO() ? Promise.resolve(pick(['911', '911', '5551234'])) : dialer(S, o),
+      question: o => AUTO() ? Promise.resolve('Кому ты записывала сообщение?') : question(S, o),
+      echo,
+      freeze: o => AUTO() ? Promise.resolve(pick(['ok', 'heard', 'moved'])) : freeze(S, o),
+      dig: o => AUTO() ? (S.hands += 6, Promise.resolve({ sec: 20 })) : dig(S, o),
+      match: o => AUTO() ? (S.matches = Math.max(0, S.matches - 2), Promise.resolve({ lit: Math.random() < .6, used: 2 })) : match(S, o),
+      frost: o => AUTO() ? Promise.resolve({ seen: Math.random() < .8 }) : frost(S, o),
+      sigil: o => AUTO() ? Promise.resolve({ ok: Math.random() < .7 }) : sigil(S, o),
+      flashlight: o => AUTO() ? Promise.resolve({ found: true }) : flashlight(S, o),
+      diary: o => AUTO() ? Promise.resolve() : diary(S, o),
+      crank: o => AUTO() ? Promise.resolve({ sec: 30 }) : crank(S, o),
+      radio: o => AUTO() ? Promise.resolve({ station: pick(['gus', 'marcy', 'denise', null]) }) : radio(S, o),
+      ladder: o => AUTO() ? Promise.resolve({ slips: 1 }) : ladder(S, o),
+      blizzard: o => AUTO() ? Promise.resolve({ arrived: Math.random() < .8 }) : blizzard(S, o),
+      combine: (items, combos, o) => AUTO() ? Promise.resolve({ made: Object.keys(combos)[0] }) : combine(S, items, combos, o),
+    },
+  };
+  return h;
+}
+
+// Запуск цепочки сцен. scenes: {id: async (S,h) => nextId | {end:'id'}}
+export async function run(S, scenes, startId, onEnd) {
+  const h = helpers(S);
+  let id = startId;
+  for (let guard = 0; guard < 400; guard++) {
+    const sc = scenes[id];
+    if (!sc) throw new Error('Нет сцены: ' + id);
+    S.scene = id; store(SAVE_KEY, S);
+    ui.pace.fast = !!window.__AUTOPLAY;
+    let nx = await sc(S, h);
+    const d = deathCheck(S);
+    if (d && scenes[d] && !String(id).startsWith('end_')) nx = d;
+    if (nx && typeof nx === 'object' && nx.end) { await onEnd(nx, S); return nx }
+    if (!nx) throw new Error('Сцена ' + id + ' не вернула продолжение');
+    id = nx;
+  }
+  throw new Error('Слишком длинная цепочка сцен');
+}
