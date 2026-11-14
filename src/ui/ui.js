@@ -1,5 +1,6 @@
 // Интерфейс: лента текста, реплики, выборы, верхняя панель, оверлеи для механик.
 import { fmtT, tx } from '../engine/state.js';
+import { rec } from '../engine/replay.js';
 
 export const $ = s => document.querySelector(s);
 export const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e };
@@ -23,13 +24,15 @@ function newPill() {
 export function advance() { if (reader.pending) { const f = reader.pending; reader.pending = null; f() } }
 // ждать тапа «далее»; пока ждём — герой читает, и часы стоят
 function nextTap() {
-  if (pace.fast) return Promise.resolve();
-  if (window.__AUTOPLAY) return wait(350);   // медленный автотест: «тапает» сам, часы не останавливаются
-  return new Promise(res => {
+  if (window.__AUTOPLAY) return pace.fast ? Promise.resolve() : wait(350);   // автотест «тапает» сам
+  // каждый тап записывается в след сохранения: «Продолжить» вернёт ровно к этому абзацу
+  return rec(() => new Promise(res => {
     reader.reading = true; moreBar().classList.add('on');
-    reader.pending = () => { reader.reading = false; moreBar().classList.remove('on'); res() };
-  });
+    reader.pending = () => { reader.reading = false; moreBar().classList.remove('on'); res('t') };
+  }));
 }
+// восстановить текст на экране из сохранения
+export function restoreLog(html) { const l = log(); l.innerHTML = html || ''; lastNode = l.lastElementChild; requestAnimationFrame(() => l.scrollTop = l.scrollHeight) }
 // показать новый блок. Прокрутка только если игрок «следит» за лентой (предыдущий блок виден целиком),
 // и ровно настолько, чтобы новый блок поместился; если он длиннее экрана — показываем его начало.
 let lastNode = null;

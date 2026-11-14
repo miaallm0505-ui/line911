@@ -5,6 +5,7 @@ import * as clock from './engine/clock.js';
 import * as dev from './engine/device.js';
 import { newState, settings, saveSettings, store, load, drop, SAVE_KEY, START_MIN, fmtT, tx } from './engine/state.js';
 import { run, interrupt } from './story/runner.js';
+import { loadSave, resume, clearSave, R } from './engine/replay.js';
 const START_SCENE = 'office1';
 import { deathCheck } from './engine/body.js';
 import { scenes } from './story/michael.js';
@@ -15,12 +16,12 @@ const $ = ui.$;
 
 // ---------- стартовый экран
 function startScreen() {
-  const saved = load(SAVE_KEY);
+  const saved = loadSave();
   $('#start').hidden = false; $('#game').hidden = true;
-  $('#cont').hidden = !(saved && saved.scene && !String(saved.scene).startsWith('end_'));
+  $('#cont').hidden = !saved;
   const mode = 'game';
   $('#go').onclick = async () => { au.init(); S = newState('Майкл', false, mode); S.t = 16 * 60 + 20; begin(START_SCENE) };
-  $('#cont').onclick = async () => { au.init(); S = saved; begin(saved.scene, true) };
+  $('#cont').onclick = async () => { au.init(); S = JSON.parse(JSON.stringify(saved.state)); begin(saved.scene, saved) };
   $('#lab').onclick = () => { au.init(); openLab() };
   $('#perm').onclick = () => permissions();
 }
@@ -50,16 +51,18 @@ function permissions() {
 }
 
 // ---------- ночь
-async function begin(sceneId, resumed) {
+async function begin(sceneId, cp) {
   $('#start').hidden = true; $('#game').hidden = false; ui.bind(S); clock.attach(S);
   $('#log').innerHTML = '';
-  if (resumed) {
-    ui.sys('— ПРОДОЛЖЕНИЕ · ' + fmtT(S.t) + ' —');
-  }
+  if (cp) {
+    // «Продолжить»: вернуть текст начала сцены и мгновенно проиграть всё, что игрок успел сделать
+    ui.restoreLog(cp.log); resume(cp); ui.pace.fast = R.on;
+    R.onStop = () => { ui.pace.fast = false; const l = document.querySelector('#log'); requestAnimationFrame(() => l.scrollTop = l.scrollHeight); ui.toast('Продолжаем с места, где ты остановился') };
+  } else clearSave();
   $('#bar').classList.toggle('on', !!S.f.hud);   // панель тела — только с начала ночи
   playing = true; dev.keepAwake(true);
   try {
-    await run(S, wrapScenes(), sceneId, endCard);
+    await run(S, wrapScenes(), sceneId, endCard, { resumed: !!cp });
   } catch (e) { console.error(e); ui.toast('Ошибка: ' + e.message, true); if (window.__AUTOPLAY) window.__ERR = (window.__ERR || []).concat(String(e.stack || e)) }
 }
 // включаем часы в момент аварии
@@ -72,7 +75,7 @@ function wrapScenes() {
 clock.onTick(() => { ui.hud(); if (playing && S) { const d = deathCheck(S); if (d) interrupt(d) } });
 
 async function endCard(end, S) {
-  clock.stop(); playing = false; dev.keepAwake(false); drop(SAVE_KEY);
+  clock.stop(); playing = false; dev.keepAwake(false); clearSave();
   const d = ui.el('div', 'endcard' + (end.end === 'proto' ? ' act' : ''));
   d.innerHTML = '<small></small><h2></h2><p></p><div class="cnt"></div>';
   d.querySelector('small').textContent = end.end === 'proto' ? 'ПРОТОТИП' : 'КОНЦОВКА';
@@ -109,7 +112,7 @@ $('#log').addEventListener('click', () => ui.advance());
 // Свернул игру — просто сохраняем и глушим фон. Время игровое, без игрока оно не идёт.
 function setAway(on) {
   if (!S || !playing) return;
-  if (on) { au.suspend(true); dev.keepAwake(false); store(SAVE_KEY, S) }
+  if (on) { au.suspend(true); dev.keepAwake(false) }   // сохранение уже идёт после каждого действия
   else { au.suspend(false); dev.keepAwake(true) }
 }
 document.addEventListener('visibilitychange', () => setAway(document.hidden));

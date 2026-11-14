@@ -5,6 +5,10 @@ import * as au from '../engine/audio.js';
 import * as clock from '../engine/clock.js';
 import { deathCheck } from '../engine/body.js';
 import { store, SAVE_KEY, clamp } from '../engine/state.js';
+import { rec, checkpoint, replaying } from '../engine/replay.js';
+// снимок состояния после механики: при «Продолжить» механика не запускается заново, а состояние восстанавливается
+const snap = S => JSON.parse(JSON.stringify(S));
+const restore = (S, v) => { for (const k in v) S[k] = v[k] };
 import { dialer, timed, question, echo } from '../mechanics/phone.js';
 import { freeze, dig, match, knock3 } from '../mechanics/body.js';
 import { frost } from '../mechanics/frost.js';
@@ -38,14 +42,17 @@ export function helpers(S) {
     wait: ms => ui.wait(ms),
     async choose(opts) {
       const vis = opts.filter(o => !o.if || o.if(S));
-      const o = AUTO() ? pick(vis) : await ui.choose(vis);
+      const i = await rec(async () => vis.indexOf(AUTO() ? pick(vis) : await ui.choose(vis)));
+      const o = vis[i] || vis[0];
       if (o.send) ui.myMsg(o.send === true ? o.t.replace(/^«|»$/g, '') : o.send); else if (o.say) ui.me(o.say === true ? o.t : o.say); else if (o.say !== false) ui.act(o.t);
       if (o.fx) o.fx(S);
       return o;
     },
     async timed(opts, sec) {
-      if (AUTO()) { const o = Math.random() < .2 ? { silence: true } : pick(opts); if (!o.silence) ui.me(o.say || o.t); return o }
-      const o = await timed(S, opts, sec); if (!o.silence) ui.me(o.say || o.t); else ui.act('Ты молчишь.'); return o;
+      const v = await rec(async () => { const o = AUTO() ? (Math.random() < .2 ? { silence: true } : pick(opts)) : await timed(S, opts, sec); return o.silence ? -1 : opts.indexOf(o) });
+      const o = v < 0 ? { silence: true } : opts[v];
+      if (o.silence) ui.act('Я промолчал.'); else if (o.say !== false) ui.me(o.say || o.t);
+      return o;
     },
     amb(name, extra = {}) { const [l, inside] = AMB[name] || AMB.car; const L = Object.assign({}, l, extra); if (S.engineOn && name === 'car') L.engine = .55; if (h._call) Object.assign(L, h._call); au.mix(L, inside); h._amb = name; h._ambx = extra },
     call(who, num, layer) { ui.callShow(who, num, layer === 'evil'); h._call = layer === 'office' ? { office: .45, static: .08 } : layer === 'kitchen' ? { kitchen: .5 } : { static: .22, murmur: .12 }; h.amb(h._amb || 'car', h._ambx); clock.setDanger(true) },
@@ -63,7 +70,7 @@ export function helpers(S) {
       await ui.sys(label || hhmm);
     },
     tick(min, act) { const p = S.activity; if (act) S.activity = act; clock.advance(min); S.activity = p; ui.hud() },
-    // механики
+    // механики (каждая записывается вместе со снимком состояния — см. ниже)
     m: {
       dialer: o => AUTO() ? Promise.resolve(pick(['911', '911', '5551234'])) : dialer(S, o),
       question: o => AUTO() ? Promise.resolve('Кому ты записывала сообщение?') : question(S, o),
@@ -82,6 +89,8 @@ export function helpers(S) {
       combine: (items, combos, o) => AUTO() ? Promise.resolve({ made: Object.keys(combos)[0] }) : combine(S, items, combos, o),
     },
   };
+  for (const k in h.m) { if (k === 'echo') continue; const fn = h.m[k]; h.m[k] = (...a) => rec(async () => ({ r: await fn(...a), S: snap(S) })).then(v => { if (v && v.S) restore(S, v.S); return v ? v.r : v }) }
+  h.snapshot = () => snap(S); h.restore = v => restore(S, v);
   return h;
 }
 
@@ -98,14 +107,16 @@ function guard(h, st) {
   g.m = {}; for (const k in h.m) g.m[k] = wrap(h.m[k]);
   return g;
 }
-export async function run(S, scenes, startId, onEnd) {
+export async function run(S, scenes, startId, onEnd, opt = {}) {
+  let resumed = !!opt.resumed;
   const h0 = helpers(S);
   let id = startId;
   for (let n = 0; n < 400; n++) {
     const sc = scenes[id];
     if (!sc) throw new Error('Нет сцены: ' + id);
-    S.scene = id; store(SAVE_KEY, S);
-    ui.pace.fast = !!window.__AUTOPLAY && !window.__SLOW;
+    S.scene = id;
+    if (resumed) resumed = false; else checkpoint(S, id, document.querySelector('#log').innerHTML);
+    ui.pace.fast = (!!window.__AUTOPLAY && !window.__SLOW) || replaying();
     clock.resetDanger(); ui.setDangerUI(false); if (h0._call) clock.setDanger(true);
     const st = { dead: false }; const h = guard(h0, st);
     const died = new Promise(r => killer = to => { if (st.dead || String(id).startsWith('end_')) return; st.dead = true; r(to) });
