@@ -63,19 +63,6 @@ if (page) {
   }
   await shot('03_after_autoplay');
 
-  // настоящая ночь: начать, свернуть на 50 с, вернуться — должен быть пропущенный вызов
-  await ev(`location.reload()`, 3000); await sleep(4000);
-  await ev(`window.__SLOW=0; (window.__state&&0); document.querySelector('#nm').value='Тест'`);
-  await page.click('#go').catch(e => check('Клик по Начать', false, e.message)); await sleep(3000);
-  await ev(`(()=>{const S=window.__state(); S.f.realtime=1; return true})()`);
-  await shot('04_game');
-  await ev(`Capacitor.Plugins.LocalNotifications.removeAllDelivered().then(()=>1)`);
-  adb('shell input keyevent KEYCODE_HOME'); await sleep(52000);
-  const n2 = adb('shell dumpsys notification --noredact');
-  check('Пропущенный вызов при выходе', /911 · \d\d:\d\d/.test(n2) && !n2.includes('911 · тест'), (n2.match(/911 · [^\s"]*/) || [''])[0]);
-  adb(`shell monkey -p ${PKG} -c android.intent.category.LAUNCHER 1`); await sleep(5000);
-  await shot('05_return');
-  check('Экран пропущенных после возвращения', await ev(`!!document.querySelector('.mech')`), await ev(`document.querySelector('.mech .mh b')?.textContent||''`));
 }
 
 const log = adb(`logcat -d -t 4000`);

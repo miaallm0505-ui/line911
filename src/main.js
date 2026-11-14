@@ -9,9 +9,8 @@ const START_SCENE = 'office1';
 import { deathCheck } from './engine/body.js';
 import { scenes } from './story/michael.js';
 import { LAB } from './lab.js';
-import { missedScreen } from './mechanics/phone.js';
 
-let S = null, playing = false, hiddenAt = 0, pendingMissed = null;
+let S = null, playing = false;
 const $ = ui.$;
 
 // ---------- стартовый экран
@@ -19,9 +18,7 @@ function startScreen() {
   const saved = load(SAVE_KEY);
   $('#start').hidden = false; $('#game').hidden = true;
   $('#cont').hidden = !(saved && saved.scene && !String(saved.scene).startsWith('end_'));
-  let fem = false, mode = 'compressed';
-  $('#mc').onclick = () => { mode = 'compressed'; $('#mc').classList.add('on'); $('#mr').classList.remove('on') };
-  $('#mr').onclick = () => { mode = 'real'; $('#mr').classList.add('on'); $('#mc').classList.remove('on') };
+  const mode = 'game';
   $('#go').onclick = async () => { au.init(); S = newState('Майкл', false, mode); S.t = 16 * 60 + 20; begin(START_SCENE) };
   $('#cont').onclick = async () => { au.init(); S = saved; begin(saved.scene, true) };
   $('#lab').onclick = () => { au.init(); openLab() };
@@ -57,12 +54,9 @@ async function begin(sceneId, resumed) {
   $('#start').hidden = true; $('#game').hidden = false; ui.bind(S); clock.attach(S);
   $('#log').innerHTML = '';
   if (resumed) {
-    const r = clock.catchUp();
     ui.sys('— ПРОДОЛЖЕНИЕ · ' + fmtT(S.t) + ' —');
-    if (r) ui.toast(`Пока тебя не было, прошло ${Math.round(r.mins)} мин. Салон: ${Math.round(S.cabin)}°F`);
-    const dd = deathCheck(S); if (dd) sceneId = dd;
   }
-  if (S.f.realtime) { clock.start(); $('#bar').classList.add('on') }
+  $('#bar').classList.toggle('on', !!S.f.hud);   // панель тела — только с начала ночи
   playing = true; dev.keepAwake(true);
   try {
     await run(S, wrapScenes(), sceneId, endCard);
@@ -110,28 +104,13 @@ $('#snd').textContent = settings.sound ? '🔊' : '🔇';
 // тап по ленте = «далее» (прокрутка пальцем тапом не считается)
 $('#log').addEventListener('click', () => ui.advance());
 // время на паузе, пока герой читает; идёт, пока выбираешь и действуешь
-clock.setPause(() => ui.reader.reading);
 
 // ---------- уход и возвращение: время идёт, звонят пропущенные
-// Android сообщает о сворачивании системным событием (appStateChange), браузер — visibilitychange. Ловим оба, без двойных срабатываний.
-let away = false;
-async function setAway(on) {
-  if (on === away) return; away = on;
-  if (!S || !playing || !S.f.realtime) return;
-  if (on) {
-    clock.stop(); au.suspend(true); dev.keepAwake(false); store(SAVE_KEY, S);
-    // звонок «приходит» через 40 с отсутствия; шторка уведомлений или быстрый выход его не вызывают
-    const at = fmtT(S.t + 40 / clock.secPerMin() + Math.random() * 2);
-    hiddenAt = Date.now(); pendingMissed = { who: '911', time: at };
-    dev.scheduleMissed('Пропущенный вызов', '911 · ' + at, 40);
-  } else {
-    au.suspend(false); dev.cancelAll(); dev.keepAwake(true);
-    if (pendingMissed && Date.now() - hiddenAt >= 40000) S.missed.push(pendingMissed); pendingMissed = null;
-    const r = clock.catchUp(); clock.start(); ui.hud();
-    const dd = deathCheck(S); if (dd) { interrupt(dd); return }
-    if (r && r.mins > 1) ui.toast(`Пока тебя не было: ${Math.round(r.mins)} мин. Салон остыл до ${Math.round(S.cabin)}°F`);
-    if (S.missed.length && r) { const list = S.missed.slice(); S.missed = []; await missedScreen(S, list) } else S.missed = [];
-  }
+// Свернул игру — просто сохраняем и глушим фон. Время игровое, без игрока оно не идёт.
+function setAway(on) {
+  if (!S || !playing) return;
+  if (on) { au.suspend(true); dev.keepAwake(false); store(SAVE_KEY, S) }
+  else { au.suspend(false); dev.keepAwake(true) }
 }
 document.addEventListener('visibilitychange', () => setAway(document.hidden));
 dev.onAppState(active => setAway(!active));
@@ -153,7 +132,7 @@ function openLab() {
 window.__state = () => S;
 window.__audioState = () => au.audio.ctx ? au.audio.ctx.state : 'нет';
 window.__audioCount = () => Object.keys(au.audio.buf).length;
-window.__autoplay = async (from = START_SCENE) => { window.__AUTOPLAY = true; window.__END = null; ui.pace.fast = !window.__SLOW; await au.init(); S = newState('Майкл', false); S.t = 16 * 60 + 20; if (!['office1'].includes(from)) { S.f.realtime = 1; S.t = START_MIN + 5 } await begin(from); return window.__END };
+window.__autoplay = async (from = START_SCENE) => { window.__AUTOPLAY = true; window.__END = null; ui.pace.fast = !window.__SLOW; await au.init(); S = newState('Майкл', false); S.t = 16 * 60 + 20; if (!['office1'].includes(from)) { S.f.hud = 1; S.t = START_MIN + 5 } await begin(from); return window.__END };
 
 // ---------- снег
 (function snow() {

@@ -55,6 +55,13 @@ export function helpers(S) {
     knock3(pan = 0, roof = true) { knock3(pan, roof) },
     shake: ui.shake, flash: ui.flash, toast: ui.toast,
     danger(on) { clock.setDanger(on); ui.setDangerUI(on) },
+    // поставить часы сцены: h.at('17:15') или h.at('17:15', 'ЗАГОЛОВОК'); время после полуночи считается следующими сутками
+    async at(hhmm, label) {
+      const [hh, mm] = hhmm.split(':').map(Number); let m = hh * 60 + mm;
+      if (m < 12 * 60 && S.t >= 18 * 60) m += 24 * 60;
+      clock.setTime(m); ui.hud();
+      await ui.sys(label || hhmm);
+    },
     tick(min, act) { const p = S.activity; if (act) S.activity = act; clock.advance(min); S.activity = p; ui.hud() },
     // механики
     m: {
