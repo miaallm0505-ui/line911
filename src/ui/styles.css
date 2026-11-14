@@ -138,7 +138,7 @@ body.danger #vign{background:radial-gradient(ellipse at center,transparent 20%,r
 .msg.cont{margin-top:-2px}
 .msg .w{display:block;font:600 11.5px var(--sans);margin-bottom:2px}
 .msg.mine{margin-left:auto;border-radius:17px 17px 5px 17px;background:#2a5d8f;color:#fff}
-.msg.J .w{color:#7fc4ff}.msg.A .w{color:#ffb14a}.msg.T .w{color:#f58fc0}.msg.M .w{color:#b9a2ff}.msg.P .w{color:#7ee0b0}.msg.Jo .w{color:#c9d36a}
+.msg.J .w{color:#7fc4ff}.msg.A .w{color:#ffb14a}.msg.T .w{color:#f58fc0}.msg.M .w{color:#b9a2ff}.msg.P .w{color:#7ee0b0}.msg.Jo .w{color:#c9d36a}.msg.B .w{color:#e88a6a}.msg.C .w{color:#a9b4bb}
 .msgtyping{margin-bottom:8px}
 /* темнота ест текст */
 body.dark #log{filter:brightness(calc(1 - var(--darkk,0) * .55)) contrast(1.05);transition:filter .6s}

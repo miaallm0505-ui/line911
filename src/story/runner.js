@@ -18,7 +18,7 @@ import { crank, radio, ladder } from '../mechanics/tower.js';
 import { blizzard, combine } from '../mechanics/world.js';
 
 export const WHO = { d: 'Дениз · 911', m: 'Марси Толонен · диспетчерская', k: 'Кейли', x: '???', j: 'Джесс', w: 'Уолт', r: 'Помощник шерифа',
-  J: 'Джеймс', A: 'Эндрю', T: 'Тиффани', M: 'Микаэла', P: 'Прия', Jo: 'Джош' };
+  J: 'Джеймс', A: 'Эндрю', T: 'Тиффани', M: 'Микаэла', P: 'Прия', Jo: 'Джош', B: 'Брэд Коулман', C: 'Кэрол Данн' };
 const AMB = {
   silent: [{}, true], road: [{ storm: .35, blizzard: .2 }, true], car: [{ storm: .5, blizzard: .25 }, true],
   out: [{ storm: .75, blizzard: .55 }, false], forest: [{ blizzard: .7, storm: .3 }, false],
