@@ -5,8 +5,9 @@ import * as clock from './engine/clock.js';
 import * as dev from './engine/device.js';
 import { newState, settings, saveSettings, store, load, drop, SAVE_KEY, START_MIN, fmtT, tx } from './engine/state.js';
 import { run, interrupt } from './story/runner.js';
+const START_SCENE = 'office1';
 import { deathCheck } from './engine/body.js';
-import { scenes } from './story/prologue.js';
+import { scenes } from './story/michael.js';
 import { LAB } from './lab.js';
 import { missedScreen } from './mechanics/phone.js';
 
@@ -19,11 +20,9 @@ function startScreen() {
   $('#start').hidden = false; $('#game').hidden = true;
   $('#cont').hidden = !(saved && saved.scene && !String(saved.scene).startsWith('end_'));
   let fem = false, mode = 'compressed';
-  $('#gm').onclick = () => { fem = false; $('#gm').classList.add('on'); $('#gf').classList.remove('on') };
-  $('#gf').onclick = () => { fem = true; $('#gf').classList.add('on'); $('#gm').classList.remove('on') };
   $('#mc').onclick = () => { mode = 'compressed'; $('#mc').classList.add('on'); $('#mr').classList.remove('on') };
   $('#mr').onclick = () => { mode = 'real'; $('#mr').classList.add('on'); $('#mc').classList.remove('on') };
-  $('#go').onclick = async () => { au.init(); S = newState(($('#nm').value.trim() || 'Алекс').slice(0, 16), fem, mode); S.t = 22 * 60 + 31; begin('station') };
+  $('#go').onclick = async () => { au.init(); S = newState('Майкл', false, mode); S.t = 16 * 60 + 20; begin(START_SCENE) };
   $('#cont').onclick = async () => { au.init(); S = saved; begin(saved.scene, true) };
   $('#lab').onclick = () => { au.init(); openLab() };
   $('#perm').onclick = () => permissions();
@@ -73,7 +72,7 @@ async function begin(sceneId, resumed) {
 function wrapScenes() {
   const w = Object.assign({}, scenes);
   const crash = scenes.crash;
-  w.crash = async (S, h) => { const r = await crash(S, h); S.t = START_MIN + 0.5; clock.attach(S); clock.start(); $('#bar').classList.add('on'); ui.hud(); return r };
+  if (crash) w.crash = async (S, h) => { const r = await crash(S, h); S.t = START_MIN + 0.5; clock.attach(S); clock.start(); $('#bar').classList.add('on'); ui.hud(); return r };
   return w;
 }
 clock.onTick(() => { ui.hud(); if (playing && S) { const d = deathCheck(S); if (d) interrupt(d) } });
@@ -88,7 +87,7 @@ async function endCard(end, S) {
   $('#log').appendChild(d); $('#log').scrollTop = 1e9;
   if (window.__AUTOPLAY) { window.__END = end.end; return }
   const o = await ui.choose([{ t: '↻ Начать ночь заново' }, { t: '⚙ Лаборатория механик' }, { t: '⌂ В меню' }]);
-  if (o.t.includes('заново')) { S = newState(S.name, S.fem, S.mode); S.t = 22 * 60 + 31; begin('station') }
+  if (o.t.includes('заново')) { S = newState('Майкл', false, S.mode); S.t = 16 * 60 + 20; begin(START_SCENE) }
   else if (o.t.includes('Лаборатория')) openLab(); else startScreen();
 }
 
@@ -154,7 +153,7 @@ function openLab() {
 window.__state = () => S;
 window.__audioState = () => au.audio.ctx ? au.audio.ctx.state : 'нет';
 window.__audioCount = () => Object.keys(au.audio.buf).length;
-window.__autoplay = async (from = 'station') => { window.__AUTOPLAY = true; window.__END = null; ui.pace.fast = !window.__SLOW; await au.init(); S = newState('Тест', Math.random() < .5); S.t = 22 * 60 + 31; if (from !== 'station') { S.f.realtime = 1; S.t = START_MIN + 5 } await begin(from); return window.__END };
+window.__autoplay = async (from = START_SCENE) => { window.__AUTOPLAY = true; window.__END = null; ui.pace.fast = !window.__SLOW; await au.init(); S = newState('Майкл', false); S.t = 16 * 60 + 20; if (!['office1'].includes(from)) { S.f.realtime = 1; S.t = START_MIN + 5 } await begin(from); return window.__END };
 
 // ---------- снег
 (function snow() {

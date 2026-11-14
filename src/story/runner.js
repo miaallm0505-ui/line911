@@ -13,7 +13,8 @@ import { flashlight, diary } from '../mechanics/light.js';
 import { crank, radio, ladder } from '../mechanics/tower.js';
 import { blizzard, combine } from '../mechanics/world.js';
 
-export const WHO = { d: 'Дениз · 911', m: 'Марси Толонен · диспетчерская', k: 'Кейли', x: '???', j: 'Джесс', w: 'Уолт', r: 'Помощник шерифа' };
+export const WHO = { d: 'Дениз · 911', m: 'Марси Толонен · диспетчерская', k: 'Кейли', x: '???', j: 'Джесс', w: 'Уолт', r: 'Помощник шерифа',
+  J: 'Джеймс', A: 'Эндрю', T: 'Тиффани', M: 'Микаэла', P: 'Прия', Jo: 'Джош' };
 const AMB = {
   silent: [{}, true], road: [{ storm: .35, blizzard: .2 }, true], car: [{ storm: .5, blizzard: .25 }, true],
   out: [{ storm: .75, blizzard: .55 }, false], forest: [{ blizzard: .7, storm: .3 }, false],
@@ -30,11 +31,15 @@ export function helpers(S) {
     note: (a, b) => ui.note(a, b),
     say: (k, t, label, typing = true) => ui.say(label != null ? label : (WHO[k] || ''), t, k, typing),
     me: t => ui.me(t),
+    chat: (title, sub) => ui.chatHead(title, sub),
+    msg: (k, t) => ui.msg(WHO[k] || k, t, k),
+    send: t => ui.myMsg(t),
+    dark: lvl => ui.dark(lvl),
     wait: ms => ui.wait(ms),
     async choose(opts) {
       const vis = opts.filter(o => !o.if || o.if(S));
       const o = AUTO() ? pick(vis) : await ui.choose(vis);
-      if (o.say) ui.me(o.say === true ? o.t : o.say); else ui.act(o.t);
+      if (o.send) ui.myMsg(o.send === true ? o.t.replace(/^«|»$/g, '') : o.send); else if (o.say) ui.me(o.say === true ? o.t : o.say); else if (o.say !== false) ui.act(o.t);
       if (o.fx) o.fx(S);
       return o;
     },

@@ -51,8 +51,12 @@ export function keepLast() {
   requestAnimationFrame(() => { const bottom = posIn(lastNode, l) + lastNode.offsetHeight + 16; if (bottom > l.scrollTop + l.clientHeight) l.scrollTo({ top: bottom - l.clientHeight, behavior: 'smooth' }) });
 }
 export function header(text, cls = 'loc') { const d = el('div', cls); d.textContent = tx(S, text); place(d) }
-export async function para(text, cls = '') { const p = el('p', 'n ' + cls); p.textContent = tx(S, text); place(p); await nextTap() }
-export async function sys(text, cls = '') { const p = el('div', 'sys ' + cls); p.textContent = tx(S, text); place(p); if (cls.includes('act')) await nextTap() }
+export async function para(text, cls = '') {
+  const p = el('p', 'n ' + cls); const t = tx(S, text);
+  if (darkLevel > 0) { p.dataset.orig = t; p.textContent = corrupt(t, darkLevel); p.classList.add('gloom'); darkened.push(p) } else p.textContent = t;
+  place(p); await nextTap();
+}
+export async function sys(text, cls = '') { const p = el('div', 'sys ' + cls); p.textContent = tx(S, text); place(p); if (cls.includes('act') || cls.includes('title')) await nextTap() }
 export async function note(title, text) {
   const d = el('div', 'note'); d.append(el('small', '', ''), el('span', '', '')); d.firstChild.textContent = title; d.lastChild.textContent = tx(S, text);
   place(d); await nextTap();
@@ -63,6 +67,37 @@ export async function say(who, text, cls = '', typing = true) {
   const b = el('div', 'b ' + cls); if (who) { const w = el('span', 'w'); w.textContent = tx(S, who); b.appendChild(w) }
   const s2 = el('span'); s2.textContent = text; b.appendChild(s2); place(b); await nextTap();
 }
+// ---- телефон: переписка в мессенджере (не путать с репликами вслух)
+let lastSender = null;
+export function chatHead(title, sub = '') { const d = el('div', 'chathead'); d.innerHTML = '<b></b><small></small>'; d.firstChild.textContent = title; d.lastChild.textContent = sub; place(d); lastSender = null }
+export async function msg(who, text, cls = '') {
+  text = tx(S, text);
+  if (!pace.fast) { const t = el('div', 'typing msgtyping', '<span></span><span></span><span></span>'); place(t); await wait(Math.min(1100, 350 + text.length * 9)); t.remove() }
+  const b = el('div', 'msg ' + cls + (lastSender === who ? ' cont' : ''));
+  if (who && lastSender !== who) { const w = el('span', 'w'); w.textContent = who; b.appendChild(w) }
+  const s2 = el('span'); s2.textContent = text; b.appendChild(s2); place(b); lastSender = who;
+  await nextTap();
+}
+export function myMsg(text) { const b = el('div', 'msg mine'); const s2 = el('span'); s2.textContent = tx(S, text); b.appendChild(s2); place(b); lastSender = '__me' }
+export function endChat() { lastSender = null }
+
+// ---- «Темнота ест текст»: в темноте слова теряют буквы; когда свет возвращается, текст тоже возвращается
+let darkLevel = 0;
+const darkened = [];
+function corrupt(text, k) {
+  return text.split(' ').map(w => {
+    if (w.length < 3 || Math.random() > k * .55) return w;
+    return [...w].map((c, i) => (i > 0 && /[а-яёa-z]/i.test(c) && Math.random() < .35 + k * .35) ? '·' : c).join('');
+  }).join(' ');
+}
+export function dark(level) {
+  darkLevel = level;
+  document.body.classList.toggle('dark', level > 0);
+  document.body.style.setProperty('--darkk', level);
+  if (level === 0) { darkened.splice(0).forEach(p => { p.textContent = p.dataset.orig; p.classList.remove('gloom'); p.classList.add('relit') }) }
+}
+export function isDark() { return darkLevel > 0 }
+
 export function me(text) { const b = el('div', 'b me'); const s2 = el('span'); s2.textContent = tx(S, text); b.appendChild(s2); place(b) }
 export function act(text) { const a = el('div', 'act'); a.textContent = '▸ ' + tx(S, text); place(a) }
 function scroll() { }

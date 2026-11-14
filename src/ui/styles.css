@@ -128,3 +128,21 @@ body.danger #vign{background:radial-gradient(ellipse at center,transparent 20%,r
 #choices button.cost{display:flex;justify-content:space-between;gap:10px}
 #choices button .t{font:12px var(--mono);color:var(--dim);white-space:nowrap}
 .loc{font:600 11px var(--sans);letter-spacing:.16em;text-transform:uppercase;color:#7f95a3;margin:20px 0 10px;animation:fi .4s}
+
+.sys.title{font:700 30px/1.1 var(--serif,Georgia),serif;letter-spacing:.32em;color:#e8edf0;text-align:center;margin:46px 0 8px;padding:0;border:0}
+
+/* мессенджер */
+.chathead{margin:22px 0 10px;padding:9px 12px;border-radius:12px;background:#0d1418;border:1px solid #1c2830;display:flex;flex-direction:column;gap:2px;animation:fi .35s}
+.chathead b{font:600 13.5px var(--sans);color:#dfe8ee}.chathead small{font:12px var(--sans);color:var(--dim)}
+.msg{max-width:80%;margin:0 0 6px;padding:8px 12px;border-radius:17px 17px 17px 5px;background:#162026;font:15px/1.42 var(--sans);color:#e6edf1;animation:fi .3s}
+.msg.cont{margin-top:-2px}
+.msg .w{display:block;font:600 11.5px var(--sans);margin-bottom:2px}
+.msg.mine{margin-left:auto;border-radius:17px 17px 5px 17px;background:#2a5d8f;color:#fff}
+.msg.J .w{color:#7fc4ff}.msg.A .w{color:#ffb14a}.msg.T .w{color:#f58fc0}.msg.M .w{color:#b9a2ff}.msg.P .w{color:#7ee0b0}.msg.Jo .w{color:#c9d36a}
+.msgtyping{margin-bottom:8px}
+/* темнота ест текст */
+body.dark #log{filter:brightness(calc(1 - var(--darkk,0) * .55)) contrast(1.05);transition:filter .6s}
+#log{transition:filter .8s}
+.n.gloom{letter-spacing:.02em;color:#7d8a92}
+.n.relit{animation:relit 1.2s ease-out}
+@keyframes relit{0%{color:#fff;text-shadow:0 0 12px rgba(255,240,200,.6)}100%{color:inherit;text-shadow:none}}
