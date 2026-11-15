@@ -63,7 +63,7 @@ export function step(S, dt = 1) {
   if (S.f.torchOn) S.flash = Math.max(0, S.flash - 0.45 * dt);
 }
 
-// Чем человек слабее, тем громче он для вииндиго (0..100)
+// Чем человек слабее, тем он громче (0..100)
 export function loudness(S) { return clamp(S.hunger * 0.5 + (98.6 - S.core) * 7 + (100 - S.blood) * 0.6, 0, 100) }
 
 export function deathCheck(S) {

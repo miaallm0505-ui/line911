@@ -94,7 +94,6 @@ body.danger #vign{background:radial-gradient(ellipse at center,transparent 20%,r
 .igrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px}.icard{height:110px;border-radius:14px;background:#0e1316;border:1px solid #232c32;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;touch-action:none}
 .icard i{font-style:normal;font-size:34px}.icard b{font:600 14px var(--sans)}.icard.ok{border-color:var(--green)}
 .icard.ghost{position:fixed;width:90px;height:90px;z-index:99;opacity:.85;pointer-events:none}.imsg{padding:0 16px;font:15px/1.5 var(--serif);color:#c9d0d4}
-.missed .mb{padding:10px 16px}.mrow{display:flex;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--line)}.mrow b{color:var(--warn);font:600 16px var(--sans)}.mrow span{color:var(--dim);font:14px var(--mono)}
 /* настройки, лаборатория, тело */
 .perm .mb,.lab .mb,.bodyp .mb{overflow-y:auto;padding:6px 16px 16px}
 .prow{display:flex;gap:12px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}.prow b{font:600 15px var(--sans)}.prow p{font:13px/1.45 var(--sans);color:var(--dim);margin-top:4px}

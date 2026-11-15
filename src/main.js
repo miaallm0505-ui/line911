@@ -1,4 +1,4 @@
-// Точка входа: стартовый экран, разрешения, ночь в реальном времени, лаборатория механик.
+// Точка входа: стартовый экран, разрешения, игра, лаборатория механик.
 import * as ui from './ui/ui.js';
 import * as au from './engine/audio.js';
 import * as clock from './engine/clock.js';
@@ -31,7 +31,6 @@ function permissions() {
   const ov = ui.overlay('Настройки и разрешения', 'Всё необязательно. Без разрешений игра проходится полностью.', { cls: 'perm' });
   const rows = [
     ['mic', 'Микрофон', '«Замри»: игра слышит, если ты кашлянешь или заговоришь, пока снаружи ходят. Без микрофона — не касайся экрана и не двигай телефон.', dev.askMic],
-    ['notify', 'Уведомления', 'Если выйдешь из игры посреди ночи, тебе может прийти «Пропущенный вызов: 911».', dev.askNotify],
     ['motion', 'Наклон телефона', 'Фонарик водится наклоном, а не пальцем.', dev.askMotion],
     ['easy', 'Упростить действия', 'Спичка, лестница, генератор и метель становятся легче. Для тех, кто пришёл за историей.', null],
     ['noTimers', 'Без таймеров', 'Срочные решения ждут тебя столько, сколько нужно. Пропадает часть напряжения.', null],
@@ -62,15 +61,8 @@ async function begin(sceneId, cp) {
   $('#bar').classList.toggle('on', !!S.f.hud);   // панель тела — только с начала ночи
   playing = true; dev.keepAwake(true);
   try {
-    await run(S, wrapScenes(), sceneId, endCard, { resumed: !!cp });
+    await run(S, scenes, sceneId, endCard, { resumed: !!cp });
   } catch (e) { console.error(e); ui.toast('Ошибка: ' + e.message, true); if (window.__AUTOPLAY) window.__ERR = (window.__ERR || []).concat(String(e.stack || e)) }
-}
-// включаем часы в момент аварии
-function wrapScenes() {
-  const w = Object.assign({}, scenes);
-  const crash = scenes.crash;
-  if (crash) w.crash = async (S, h) => { const r = await crash(S, h); S.t = START_MIN + 0.5; clock.attach(S); clock.start(); $('#bar').classList.add('on'); ui.hud(); return r };
-  return w;
 }
 clock.onTick(() => { ui.hud(); if (playing && S) { const d = deathCheck(S); if (d) interrupt(d) } });
 
@@ -84,14 +76,14 @@ async function endCard(end, S) {
   $('#log').appendChild(d); $('#log').scrollTop = 1e9;
   if (window.__AUTOPLAY) { window.__END = end.end; return }
   const o = await ui.choose([{ t: '↻ Начать ночь заново' }, { t: '⚙ Лаборатория механик' }, { t: '⌂ В меню' }]);
-  if (o.t.includes('заново')) { S = newState('Майкл', false, S.mode); S.t = 16 * 60 + 20; begin(START_SCENE) }
+  if (o.t.includes('заново')) { S = newState('Майкл'); S.t = 16 * 60 + 20; begin(START_SCENE) }
   else if (o.t.includes('Лаборатория')) openLab(); else startScreen();
 }
 
 // ---------- тело (панель)
 $('#bodyBtn').onclick = () => {
   if (!S) return;
-  const ov = ui.overlay('Тело', 'Обновляется в реальном времени', { cls: 'bodyp' });
+  const ov = ui.overlay('Тело', 'Меняется вместе с игровым временем', { cls: 'bodyp' });
   const box = ui.el('div', 'stats'); ov.body.appendChild(box);
   const lvl = v => v < 25 ? 'норма' : v < 50 ? 'слабо' : v < 75 ? 'сильно' : 'критично';
   const draw = () => {
@@ -106,9 +98,8 @@ $('#snd').onclick = () => { au.setSound(!settings.sound); $('#snd').textContent 
 $('#snd').textContent = settings.sound ? '🔊' : '🔇';
 // тап по ленте = «далее» (прокрутка пальцем тапом не считается)
 $('#log').addEventListener('click', () => ui.advance());
-// время на паузе, пока герой читает; идёт, пока выбираешь и действуешь
 
-// ---------- уход и возвращение: время идёт, звонят пропущенные
+// ---------- уход и возвращение
 // Свернул игру — просто сохраняем и глушим фон. Время игровое, без игрока оно не идёт.
 function setAway(on) {
   if (!S || !playing) return;
@@ -120,7 +111,7 @@ dev.onAppState(active => setAway(!active));
 
 // ---------- лаборатория
 function openLab() {
-  const D = newState('Алекс', false, 'compressed'); D.flash = 80; ui.bind(D); clock.attach(D);
+  const D = newState('Майкл'); D.flash = 80; ui.bind(D); clock.attach(D);
   const ov = ui.overlay('Лаборатория механик', 'Каждую можно попробовать отдельно. В игре они появляются в своих сценах.', { cls: 'lab' });
   LAB.forEach((m, i) => {
     const r = ui.el('div', 'lcard'); r.innerHTML = '<div><small></small><b></b><p></p></div><button>▶</button>';
@@ -145,13 +136,13 @@ window.__autoplay = async (from = START_SCENE) => { window.__AUTOPLAY = true; wi
   (function f() { x.clearRect(0, 0, W, H); x.fillStyle = 'rgba(220,230,235,.75)'; P.forEach(p => { p.x += p.d * .7; p.y += p.s; if (p.x > W) p.x = -5; if (p.y > H) { p.y = -5; p.x = Math.random() * W } x.beginPath(); x.arc(p.x, p.y, p.r, 0, 7); x.fill() }); requestAnimationFrame(f) })();
 })();
 
-// ---------- кнопка «Назад» на Android: закрыть механику нельзя, из игры — двойным нажатием (ночь продолжится)
+// ---------- кнопка «Назад» на Android: закрыть механику нельзя, из игры — двойным нажатием (игра сохранена)
 let backAt = 0;
 dev.onBack(() => {
   if (document.querySelector('.mech.lab, .mech.perm, .mech.bodyp')) { document.querySelector('.mech .mf button:last-child')?.click(); return }
   if (document.querySelector('.mech')) return;
   if (Date.now() - backAt < 2000) return dev.minimize();
-  backAt = Date.now(); ui.toast(playing ? 'Ещё раз — свернуть. Ночь не остановится.' : 'Ещё раз — выйти');
+  backAt = Date.now(); ui.toast(playing ? 'Ещё раз — свернуть. Игра сохранена.' : 'Ещё раз — выйти');
 });
 dev.statusBar();
 startScreen();

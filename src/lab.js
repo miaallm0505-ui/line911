@@ -1,25 +1,14 @@
 // Лаборатория: все механики по отдельности.
 import * as au from './engine/audio.js';
-import * as dev from './engine/device.js';
-import * as clock from './engine/clock.js';
-import { settings, fmtT } from './engine/state.js';
-import { dialer, timed, question, echo, missedScreen } from './mechanics/phone.js';
+import { dialer, timed, question, echo } from './mechanics/phone.js';
 import { freeze, dig, match, knock3 } from './mechanics/body.js';
 import { frost } from './mechanics/frost.js';
 import { sigil, SHAPES } from './mechanics/sigil.js';
 import { flashlight, diary } from './mechanics/light.js';
 import { crank, radio, ladder } from './mechanics/tower.js';
 import { blizzard, combine } from './mechanics/world.js';
-import { overlay, el } from './ui/ui.js';
 
 export const LAB = [
-  { n: 'Реальное время', d: 'Часы идут, пока ты думаешь. Смотри, как остывает салон и садится телефон.', run: S => new Promise(res => {
-    const ov = overlay('Реальное время', 'Сжатая ночь: 1 игровая минута = 10 секунд. Опасные моменты — секунда в секунду.');
-    const b = el('div', 'rt'); ov.body.appendChild(b); clock.attach(S); clock.start();
-    const iv = setInterval(() => { b.innerHTML = `<div class="big">${fmtT(S.t)}</div><p>Салон: ${S.cabin.toFixed(1)}°F<br>Тело: ${S.core.toFixed(2)}°F<br>Телефон: ${S.bat.toFixed(1)}%<br>Голод: ${S.hunger.toFixed(1)}</p><p class="dim">${clock.isDanger() ? 'ОПАСНОСТЬ — время идёт секунда в секунду' : 'Обычный ход времени'}</p>` }, 250);
-    ov.button('Опасный момент вкл/выкл', () => clock.setDanger(!clock.isDanger()));
-    ov.button('Закрыть', () => { clearInterval(iv); clock.stop(); if (clock.isDanger()) clock.setDanger(false); ov.close(); res() });
-  }) },
   { n: 'Иней на стекле', d: 'Протри пальцем, чтобы выглянуть. Иней нарастает снова.', run: async S => { const r = await frost(S, { scene: { prints: true, figure: { x: .85, y: .58 } }, target: { x: .3, y: .6, w: .45, h: .35 }, reveal: 'Следы. Пальцев — семь.' }); return r.seen ? 'Разглядел(а).' : 'Не успел(а).' } },
   { n: 'Знак на инее', d: 'Нарисуй пальцем условный знак. Голос оно крадёт, знак — нет.', run: async S => { const want = SHAPES[Math.floor(Math.random() * SHAPES.length)]; const r = await sigil(S, { want }); return r.ok ? 'Кейли узнала знак.' : 'Знак не получился.' } },
   { n: 'Звонилка', d: 'Набери номер сам: 911 или номер Марси +1 (906) 387-4410.', run: async S => { const n = await dialer(S, { hint: 'Набери 911 или 9063874410', cancel: 'Отмена' }); return n === '911' ? 'Гудки… На шестом — щелчок.' : n === '9063874410' ? 'Центральная диспетчерская, Марси Толонен.' : n ? 'Номер не обслуживается.' : null } },
@@ -36,11 +25,5 @@ export const LAB = [
   { n: 'Лестница вышки', d: 'Левая — правая — в такт.', run: async S => { const r = await ladder(S); return `Наверху. Срывов: ${r.slips}.` } },
   { n: 'Вещи руками', d: 'Перетащи батарейки на фонарик.', run: async S => { const r = await combine(S, [{ k: 'flashlight', n: 'Фонарик', icon: '🔦' }, { k: 'batteries', n: 'Батарейки', icon: '🔋' }, { k: 'matches', n: 'Спички', icon: '🔥' }, { k: 'medkit', n: 'Аптечка', icon: '✚' }], { 'batteries+flashlight': S => { S.flash = 100; return 'Щелчок — и ровный белый луч.' } }); return r.made ? 'Фонарик работает.' : null } },
   { n: 'Метель', d: 'Держи курс по компасу. Ветер сносит, следы заметает.', run: async S => { const r = await blizzard(S); return r.arrived ? 'Дошёл(ла).' : 'Заблудился(лась).' } },
-  { n: 'Пропущенный вызов', d: 'Выйди из игры на 15 секунд. Если включены уведомления — тебе позвонят.', run: async S => {
-    S.missed = [{ who: '911', time: fmtT(S.t + 2) }, { who: '911', time: fmtT(S.t + 5) }];
-    if (settings.notify) dev.scheduleMissed('Пропущенный вызов', '911 · ' + fmtT(S.t + 2), 10);
-    await new Promise(r => { const h = () => { if (!document.hidden) { document.removeEventListener('visibilitychange', h); r() } }; document.addEventListener('visibilitychange', h); setTimeout(() => { document.removeEventListener('visibilitychange', h); r() }, 20000) });
-    await missedScreen(S, S.missed); S.missed = [];
-  } },
   { n: 'Звук по сторонам', d: 'В наушниках: шаги обходят машину слева направо.', run: async () => { au.sweep('steps', -1, 1, 6); await new Promise(r => setTimeout(r, 6500)); return 'Обошло.' } },
 ];

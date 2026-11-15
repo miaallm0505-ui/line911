@@ -1,4 +1,4 @@
-// Телефон героя: звонилка, звонок с таймером, вопрос своими словами, пропущенные вызовы.
+// Телефон героя: звонилка, звонок с таймером, вопрос своими словами.
 import { overlay, el, $, keepLast } from '../ui/ui.js';
 import { tx, settings } from '../engine/state.js';
 import { play } from '../engine/audio.js';
@@ -57,12 +57,3 @@ export function question(S, o = {}) {
 }
 // Мимик повторяет вопрос слово в слово, но «твоим голосом»: заедает на последних словах
 export function echo(q) { const w = q.replace(/[?!.]+$/, '').split(/\s+/); const tail = w.slice(-2).join(' '); return [q, `${q.replace(/[?!.]+$/, '')}… ${tail}… ${tail}…`] }
-
-// ---- Пропущенные вызовы (экран телефона при возвращении)
-export function missedScreen(S, list) {
-  return new Promise(res => {
-    const ov = overlay('Пропущенные вызовы', 'Пока тебя не было', { cls: 'missed' });
-    list.forEach(m => { const r = el('div', 'mrow'); r.innerHTML = '<b></b><span></span>'; r.firstChild.textContent = m.who; r.lastChild.textContent = m.time; ov.body.appendChild(r) });
-    ov.button('Закрыть', () => { ov.close(); res() });
-  });
-}
